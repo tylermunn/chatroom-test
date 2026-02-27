@@ -1,9 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const entryModal = document.getElementById('entry-modal');
-    const joinForm = document.getElementById('join-form');
+    const authForm = document.getElementById('auth-form');
     const usernameInput = document.getElementById('username-input');
+    const passwordInput = document.getElementById('password-input');
+    const confirmPasswordContainer = document.getElementById('confirm-password-container');
+    const confirmPasswordInput = document.getElementById('confirm-password-input');
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const authError = document.getElementById('auth-error');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
 
+    let authMode = 'login'; // 'login' or 'register'
     const mainApp = document.getElementById('main-app');
     const chatForm = document.getElementById('chat-form');
     const messageInput = document.getElementById('message-input');
@@ -161,43 +169,129 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const formSubmitHandler = (e) => {
+    // Auth Tabs
+    tabLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        authMode = 'login';
+        tabLogin.classList.replace('border-transparent', 'border-indigo-500');
+        tabLogin.classList.replace('text-zinc-500', 'text-indigo-400');
+        tabRegister.classList.replace('border-indigo-500', 'border-transparent');
+        tabRegister.classList.replace('text-indigo-400', 'text-zinc-500');
+        confirmPasswordContainer.classList.add('hidden');
+        authSubmitBtn.textContent = 'Authenticate';
+        authError.classList.add('hidden');
+    });
+
+    tabRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        authMode = 'register';
+        tabRegister.classList.replace('border-transparent', 'border-indigo-500');
+        tabRegister.classList.replace('text-zinc-500', 'text-indigo-400');
+        tabLogin.classList.replace('border-indigo-500', 'border-transparent');
+        tabLogin.classList.replace('text-indigo-400', 'text-zinc-500');
+        confirmPasswordContainer.classList.remove('hidden');
+        authSubmitBtn.textContent = 'Register Account';
+        authError.classList.add('hidden');
+    });
+
+    // Handle Auth Submit
+    authForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = usernameInput.value.trim();
-        if (username) {
-            myUsername = username;
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
 
-            // Set Avatar Initials
-            myAvatar.textContent = username.substring(0, 2).toUpperCase();
+        if (!username || !password) return;
 
-            // Initialize Socket Connection ONLY if it doesn't exist
-            if (!socket) {
-                socket = io();
-
-                socket.on('connect', () => {
-                    mySessionId = socket.id;
-                    socket.emit('join_chat', myUsername);
-
-                    // Hide modal, show app
-                    entryModal.classList.add('opacity-0');
-                    setTimeout(() => {
-                        entryModal.classList.add('hidden');
-                        entryModal.classList.remove('flex');
-                        mainApp.classList.remove('hidden');
-                        setTimeout(() => {
-                            mainApp.classList.remove('opacity-0');
-                            messageInput.focus();
-                        }, 10);
-                    }, 300);
+        if (authMode === 'register') {
+            if (password !== confirmPassword) {
+                showAuthError("Passwords do not match");
+                return;
+            }
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
                 });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-                setupSocketListeners();
+                // Switch to login gently
+                authMode = 'login';
+                tabLogin.click();
+                passwordInput.value = '';
+                showAuthError("Registration successful. Please login.", true);
+            } catch (err) {
+                showAuthError(err.message);
+            }
+        } else {
+            // Login
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Login failed');
+
+                myUsername = data.user.username;
+                isAdmin = data.user.role === 'mod';
+                localStorage.setItem('chat_token', data.token);
+
+                connectSocket(data.token);
+
+            } catch (err) {
+                showAuthError(err.message);
             }
         }
-    };
+    });
 
-    // Join Chat Event
-    joinForm.addEventListener('submit', formSubmitHandler);
+    function showAuthError(msg, isSuccess = false) {
+        authError.textContent = msg;
+        authError.classList.remove('hidden', 'bg-red-500/10', 'border-red-500/20', 'text-red-500', 'bg-emerald-500/10', 'border-emerald-500/20', 'text-emerald-500');
+        if (isSuccess) {
+            authError.classList.add('bg-emerald-500/10', 'border-emerald-500/20', 'text-emerald-500');
+        } else {
+            authError.classList.add('bg-red-500/10', 'border-red-500/20', 'text-red-500');
+        }
+    }
+
+    function connectSocket(token) {
+        myAvatar.textContent = myUsername.substring(0, 2).toUpperCase();
+
+        if (!socket) {
+            socket = io({
+                auth: { token }
+            });
+
+            socket.on('connect', () => {
+                mySessionId = socket.id;
+                socket.emit('join_chat'); // Handled securely via token now!
+
+                entryModal.classList.add('opacity-0');
+                setTimeout(() => {
+                    entryModal.classList.add('hidden');
+                    entryModal.classList.remove('flex');
+                    mainApp.classList.remove('hidden');
+                    if (isAdmin && adminPanel) adminPanel.classList.remove('hidden');
+                    setTimeout(() => {
+                        mainApp.classList.remove('opacity-0');
+                        messageInput.focus();
+                    }, 10);
+                }, 300);
+            });
+
+            socket.on('connect_error', (err) => {
+                showAuthError(err.message);
+                socket.disconnect();
+                socket = null;
+            });
+
+            setupSocketListeners();
+        }
+    }
 
     // Chat Form Submit (Global Inbox)
     chatForm.addEventListener('submit', (e) => {
@@ -225,6 +319,25 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.off('delete_message');
         socket.off('purge_all_messages');
         socket.off('kicked_out');
+        socket.off('message_voted');
+        socket.off('reputation_update');
+
+        // Reputation logic
+        socket.on('message_voted', (data) => {
+            const el = document.getElementById(`score-${data.msgId}`);
+            if (el) {
+                el.textContent = `REP: ${data.score}`;
+                el.className = `text-[10px] whitespace-nowrap font-bold ${data.score > 0 ? 'text-emerald-500' : data.score < 0 ? 'text-red-500' : 'text-zinc-500'}`;
+            }
+        });
+
+        const liveTickerText = document.getElementById('live-ticker-text');
+        socket.on('reputation_update', (data) => {
+            if (liveTickerText) {
+                const updateStr = `[ REPUTATION UPDATE ] *** [ USER: ${data.username.toUpperCase()} ] *** [ NEW SCORE: ${data.reputation} ] *** `;
+                liveTickerText.textContent = updateStr + liveTickerText.textContent;
+            }
+        });
 
         // Handle chat history
         socket.on('chat_history', (history) => {
@@ -325,12 +438,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${badgeHTML}
                         </span>
                         <span class="text-[11px] font-mono text-zinc-600">${timeString}</span>
+                        ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[10px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-500'}">REP: ${msg.score}</span>` : ''}
                     </div>
                     <div class="text-[14.5px] leading-relaxed max-w-[85%] text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-4 py-2.5 text-white rounded-tr-sm shadow-md' : msg.isAdmin ? 'bg-zinc-800/90 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md border-l-4 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-4 py-3 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-lg' : 'bg-zinc-800/80 border border-zinc-700/50 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md'} font-medium">
                         ${escapeHTML(msg.text)}
                     </div>
                     
                     <div class="mt-1 flex gap-2 items-center h-6 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
+                        ${!isMe && !msg.isBot ? `
+                        <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[11px] uppercase tracking-wider font-bold text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 px-2 py-0.5 border border-transparent hover:border-emerald-500/20 rounded transition-colors flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg> UP</button>
+                        <button onclick="voteMessage('${msg.msgId}', -1)" class="text-[11px] uppercase tracking-wider font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-2 py-0.5 border border-transparent hover:border-red-500/20 rounded transition-colors flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> DOWN</button>
+                        ` : ''}
                         ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-[11px] uppercase tracking-wider font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-2 py-0.5 border border-transparent hover:border-red-500/20 rounded transition-colors">Terminate</button>` : ''}
                     </div>
                 </div>
@@ -338,6 +456,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         msgWrapper.innerHTML = innerHTML;
         messagesContainer.appendChild(msgWrapper);
+    }
+
+    window.voteMessage = function (msgId, voteType) {
+        if (socket) socket.emit('vote_message', { msgId, voteType });
     }
 
     window.deleteMessage = function (msgId) {
@@ -384,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         users.forEach(user => {
             const isMe = user.id === mySessionId;
             const li = document.createElement('li');
-            li.className = 'flex items-center justify-between px-5 py-3 hover:bg-zinc-800/50 transition-colors cursor-pointer group ' + (isMe ? 'bg-zinc-800/50' : '');
+            li.className = 'flex items-center justify-center md:justify-between px-3 md:px-5 py-2 md:py-3 hover:bg-zinc-800/50 transition-colors cursor-pointer group flex-shrink-0 min-w-[72px] md:min-w-0 md:w-full ' + (isMe ? 'bg-zinc-800/50' : '');
 
             const initial = user.isBot ? '✨' : user.username.substring(0, 2).toUpperCase();
             const statusText = user.isBot ? 'Listening - AI Kernel' : 'Established - Online';
@@ -404,23 +526,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             li.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <div class="w-10 h-10 rounded-full ${avatarClass} flex items-center justify-center font-bold text-sm shadow-md">
+                    <div class="flex flex-col md:flex-row items-center gap-1.5 md:gap-3 w-full">
+                        <div class="relative shrink-0 flex items-center justify-center">
+                            <div class="w-12 h-12 md:w-10 md:h-10 rounded-full ${avatarClass} flex items-center justify-center font-bold text-sm shadow-md">
                                 ${user.isBot ? `<svg class="w-6 h-6 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
                             </div>
-                            <div class="absolute bottom-0 right-0 w-3 h-3 ${user.isBot ? 'bg-indigo-500' : 'bg-emerald-500'} border-2 border-[#18181b] rounded-full"></div>
+                            <div class="absolute bottom-0 right-0 md:bottom-0 md:right-0 w-3 h-3 md:w-3 md:h-3 ${user.isBot ? 'bg-indigo-500' : 'bg-emerald-500'} border-2 border-[#18181b] rounded-full"></div>
                         </div>
-                        <div class="flex flex-col">
-                            <span class="text-[14px] font-bold uppercase tracking-wide ${nameColorStr} group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
-                                ${escapeHTML(user.username)} ${isMe ? '<span class="text-zinc-500 font-normal">*(Me)*</span>' : ''}
-                                ${badgeHTML}
+                        <div class="flex flex-col items-center md:items-start w-full overflow-hidden">
+                            <span class="text-[10px] md:text-[14px] font-bold uppercase tracking-wide truncate w-full text-center md:text-left ${nameColorStr} group-hover:text-indigo-400 transition-colors flex items-center justify-center md:justify-start gap-1">
+                                ${escapeHTML(user.username.split(' ')[0])} 
+                                <span class="hidden md:inline-flex">${badgeHTML}</span>
                             </span>
-                            <span class="text-[11px] font-mono text-zinc-500">${statusText}</span>
+                            <span class="hidden md:block text-[11px] font-mono text-zinc-500 truncate w-full text-left">${statusText}</span>
                         </div>
                     </div>
                     ${!isMe && !user.isBot ? `
-                    <div class="flex items-center">
+                    <div class="hidden md:flex items-center shrink-0">
                         ${isAdmin ? `<button class="opacity-0 group-hover:opacity-100 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded shadow-sm text-[11px] font-bold uppercase tracking-wider text-red-500 hover:bg-red-500/20 transition-all kick-user-btn">Drop</button>` : ''}
                     </div>
                     ` : ''}

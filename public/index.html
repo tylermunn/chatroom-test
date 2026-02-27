@@ -4,270 +4,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Syracuse Latin Network - Communication Relay</title>
+    <title>Syracuse Latin - Crypto Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0c0a09;
-            /* dark zinc */
-            color: #f5f5f4;
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #050505;
+            color: #e5e5e5;
+            background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
         }
 
-        .chat-scroll::-webkit-scrollbar {
-            width: 6px;
+        .crypto-panel {
+            background: rgba(10, 10, 12, 0.8);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
 
-        .chat-scroll::-webkit-scrollbar-track {
-            background: transparent;
+        .app-tile {
+            transition: all 0.2s ease-in-out;
+            position: relative;
+            overflow: hidden;
         }
 
-        .chat-scroll::-webkit-scrollbar-thumb {
-            background-color: #3f3f46;
-            border-radius: 4px;
+        .app-tile::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.8), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        .chat-scroll::-webkit-scrollbar-thumb:hover {
-            background-color: #52525b;
+        .app-tile:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 255, 204, 0.6);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
         }
 
-        /* Sleek Glassmorphism login */
-        .glass-panel {
-            background: rgba(24, 24, 27, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        .app-tile:hover::before {
+            opacity: 1;
+        }
+
+        .neon-text {
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        /* Scanline effect */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
         }
     </style>
 </head>
 
-<body class="h-screen w-full flex flex-col overflow-hidden text-[#f5f5f4] bg-[#0c0a09]">
-
-    <!-- Login Modal -->
-    <div id="entry-modal"
-        class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300">
-        <div class="glass-panel w-full max-w-[420px] p-10 rounded-2xl mx-4">
-            <div class="mb-8 flex items-center justify-center">
-                <!-- Sleek abstract logo -->
-                <svg class="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-            </div>
-            <h1 class="text-3xl font-bold mb-2 text-center text-white tracking-tight">SYRACUSE LATIN</h1>
-            <p class="text-[14px] mb-8 text-center text-zinc-400">Establish secure connection identifier</p>
-            <form id="join-form" class="space-y-6">
-                <div>
-                    <input type="text" id="username-input" autocomplete="off" required placeholder="Alias / Callsign"
-                        class="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-700 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all text-[15px] placeholder-zinc-500 text-white shadow-inner" />
-                </div>
-                <div class="flex justify-center pt-2">
-                    <button type="submit"
-                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg px-8 py-3 text-[15px] transition-all shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:shadow-[0_0_25px_rgba(79,70,229,0.6)]">
-                        Initialize Connection
-                    </button>
-                </div>
-            </form>
-        </div>
+<body class="min-h-screen relative overflow-x-hidden">
+    <div class="scanlines"></div>
+    <!-- Abstract Background Lights -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute top-[20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#00ffcc]/5 blur-[150px]"></div>
+        <div class="absolute bottom-[-10%] right-[10%] w-[30%] h-[30%] rounded-full bg-[#ff00a0]/5 blur-[150px]"></div>
     </div>
 
-    <!-- Snow Day Predictor Modal -->
-    <div id="snow-modal"
-        class="hidden absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300 opacity-0">
-        <div
-            class="glass-panel w-full max-w-[500px] p-8 rounded-xl mx-4 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div class="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-sky-500/10 rounded-lg border border-sky-500/20">
-                        <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 7v5" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-white tracking-tight">AI Snow Day Predictor</h2>
-                        <span class="text-xs text-sky-400/80 font-mono tracking-wider uppercase">Syracuse, NY</span>
-                    </div>
-                </div>
-                <button id="close-snow-btn"
-                    class="text-zinc-500 hover:text-white transition-colors bg-zinc-800/50 hover:bg-zinc-700 p-2 rounded-full">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-
-            <div id="snow-content" class="overflow-y-auto chat-scroll flex-1 pr-2 space-y-4">
-                <div class="flex flex-col items-center justify-center py-10 text-zinc-400 gap-4">
-                    <div class="w-10 h-10 rounded-full border-t-2 border-l-2 border-sky-500 animate-spin"></div>
-                    <p class="text-sm font-mono animate-pulse">Querying weather APIs & Gemini Kernel...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main App container -->
-    <div id="main-app" class="hidden h-full flex flex-col w-full transition-opacity duration-300 bg-[#0c0a09]">
-
-        <!-- Top Nav -->
-        <header class="h-14 flex items-center justify-between px-6 border-b border-zinc-800 bg-[#18181b] shrink-0 z-20">
+    <!-- Header -->
+    <header class="relative z-10 border-b border-[#00ffcc]/20 bg-[#050505]/90 backdrop-blur-md sticky top-0">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-                <span class="font-bold text-lg tracking-widest text-zinc-100 uppercase">LATIN_RELAY</span>
-            </div>
-
-            <!-- Fake Search Bar -->
-            <div
-                class="hidden md:flex bg-zinc-900 border border-zinc-800 rounded-full xl:w-[400px] lg:w-[300px] h-9 items-center px-4 transition-colors cursor-text hover:border-zinc-700">
-                <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-                <span class="text-zinc-500 text-sm ml-2 font-medium">Query network nodes...</span>
-            </div>
-
-            <div class="flex items-center gap-4 text-zinc-400">
-                <!-- Weather Widget (Desktop) -->
-                <button id="open-snow-btn"
-                    class="hidden md:flex items-center gap-3 hover:bg-zinc-800/80 px-3 py-1.5 rounded-lg transition-colors border border-zinc-700/50 hover:border-sky-500/50 group"
-                    title="Open Snow Day AI Predictor">
-                    <svg class="w-5 h-5 text-sky-400 group-hover:scale-110 transition-transform" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z">
-                        </path>
-                    </svg>
-                    <div class="flex flex-col text-left">
-                        <span
-                            class="text-[9px] uppercase font-bold text-sky-500/70 tracking-widest leading-none mb-0.5">Syracuse,
-                            NY</span>
-                        <div class="flex items-center gap-2">
-                            <span id="current-weather"
-                                class="text-[12px] font-bold text-zinc-200 leading-none">--°</span>
-                            <span class="w-1 h-1 rounded-full bg-zinc-700"></span>
-                            <span id="current-datetime"
-                                class="text-[12px] font-mono font-medium text-indigo-400/90 tracking-tight leading-none">--:--</span>
-                        </div>
-                    </div>
-                </button>
-
-                <!-- Admin Lock/Settings -->
-                <button id="admin-trigger"
-                    class="hover:text-white hover:bg-zinc-800 p-2 rounded-full relative transition-colors"
-                    title="System Settings">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                </button>
-                <!-- Avatar -->
-                <div id="my-avatar"
-                    class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-sm font-bold text-white shadow-lg cursor-pointer border border-indigo-400/30">
-                    ME</div>
-            </div>
-        </header>
-
-        <div class="flex flex-1 overflow-hidden">
-
-            <!-- Left Column (Users List) -->
-            <div class="w-full md:w-72 border-r border-zinc-800 bg-[#18181b]/50 backdrop-blur-sm flex flex-col shrink-0 text-white"
-                id="middle-pane">
-                <div class="px-5 py-4 border-b border-zinc-800">
-                    <h2 class="text-xs font-bold tracking-widest text-zinc-500 uppercase mb-4">Network Status</h2>
-                    <div class="flex gap-4 border-b border-zinc-800 text-[13px] font-semibold text-zinc-400">
-                        <button class="pb-2 border-b-2 border-indigo-500 text-indigo-400">Live Channel</button>
-                        <button class="pb-2 hover:text-zinc-200 transition-colors">Nodes (<span
-                                id="active-count">1</span>)</button>
-                    </div>
-                </div>
-
-                <!-- Active users -->
-                <ul id="active-users-list" class="flex-1 overflow-y-auto chat-scroll divide-y divide-zinc-800/50">
-                    <!-- Users injected here -->
-                </ul>
-            </div>
-
-            <!-- Main Chat Area -->
-            <main class="hidden md:flex flex-1 flex-col bg-[#0c0a09] relative" id="right-pane">
-                <!-- Info Header -->
                 <div
-                    class="px-6 py-4 border-b border-zinc-800 bg-[#121214] shrink-0 flex items-center justify-between shadow-sm z-10">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <div>
-                            <h2 class="text-[15px] font-bold text-zinc-100 tracking-wide">// SYRACUSE_LATIN_RELAY</h2>
-                            <div class="text-[11px] text-zinc-500 mt-0.5 font-mono uppercase">
-                                Secure Encrypted Tunnel Open
-                            </div>
-                        </div>
-                        <!-- Admin Panel (Hidden) -->
-                        <div id="admin-panel" class="hidden ml-6 pl-6 border-l border-zinc-700">
-                            <button id="purge-btn"
-                                class="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-4 py-1.5 rounded-md text-[13px] font-bold transition-all border border-red-500/20 focus:ring-2 focus:ring-red-500/40 uppercase tracking-wide flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                    </path>
-                                </svg>
-                                Purge System
-                            </button>
-                        </div>
+                    class="w-8 h-8 flex items-center justify-center text-[#00ffcc] font-bold border border-[#00ffcc]/50 bg-[#00ffcc]/10 shadow-[0_0_10px_rgba(0,255,204,0.2)]">
+                    SL</div>
+                <h1 class="font-bold text-xl tracking-widest text-zinc-100 uppercase uppercase neon-text">SYS_DASHBOARD
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-4 text-[#00ffcc]/70">
+                <div id="nav-time" class="hidden md:block text-sm font-bold tracking-widest uppercase"></div>
+                <div
+                    class="w-8 h-8 border border-[#00ffcc]/30 bg-[#00ffcc]/5 flex items-center justify-center animate-pulse">
+                    <div class="w-3 h-3 bg-[#00ffcc] shadow-[0_0_8px_#00ffcc]"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative z-10 max-w-7xl mx-auto px-6 py-16 flex flex-col items-center">
+        <!-- Hero Section -->
+        <div class="text-center mb-16 max-w-2xl">
+            <div
+                class="inline-flex items-center gap-2 px-3 py-1 bg-[#00ffcc]/5 border border-[#00ffcc]/30 text-[#00ffcc] text-xs font-bold uppercase tracking-widest mb-6">
+                <span class="w-2 h-2 bg-[#00ffcc] animate-ping"></span>
+                Web3 Connect Protocol
+            </div>
+            <h2 class="text-3xl md:text-5xl font-bold text-white tracking-widest mb-4 uppercase">DECENTRALIZED <span
+                    class="neon-text">HUB</span></h2>
+            <p class="text-lg text-zinc-400 leading-relaxed max-w-lg mx-auto">Select a node module to interface with the
+                global student ledger and communication layers.</p>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
+
+            <!-- Chat App Tile -->
+            <a href="/chat.html" class="crypto-panel app-tile group block p-6">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                    <span class="text-6xl font-bold text-[#00ffcc] opacity-20">01</span>
+                </div>
+                <div
+                    class="w-12 h-12 bg-[#00ffcc]/10 flex items-center justify-center text-[#00ffcc] border border-[#00ffcc]/30 mb-6">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2 uppercase tracking-widest">LATIN_RELAY</h3>
+                <p class="text-sm text-zinc-400 leading-relaxed mb-6">Global encrypted real-time communications channel.
+                    *Authentication Required*.</p>
+                <div
+                    class="flex items-center text-[#00ffcc] text-sm font-bold uppercase tracking-widest group-hover:translate-x-2 transition-transform">
+                    > Initialize Auth <span class="animate-pulse ml-1">_</span>
+                </div>
+            </a>
+
+            <!-- DropBox / Feature Requests -->
+            <a href="/suggestions.html" class="crypto-panel app-tile group block p-6">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                    <span class="text-6xl font-bold text-[#ff00a0] opacity-20">02</span>
+                </div>
+                <div
+                    class="w-12 h-12 bg-[#ff00a0]/10 flex items-center justify-center text-[#ff00a0] border border-[#ff00a0]/30 mb-6">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2 uppercase tracking-widest">NEURAL_LINK</h3>
+                <p class="text-sm text-zinc-400 leading-relaxed mb-6">Submit feature requests, bug hashes, and proposals
+                    to network devs.</p>
+                <div
+                    class="flex items-center text-[#ff00a0] text-sm font-bold uppercase tracking-widest group-hover:translate-x-2 transition-transform">
+                    > Open Uplink <span class="animate-pulse ml-1">_</span>
+                </div>
+            </a>
+
+            <!-- Weather Widget -->
+            <div class="crypto-panel group block p-6 relative overflow-hidden bg-black border-zinc-800">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="flex gap-2">
+                        <div class="w-3 h-3 bg-zinc-800"></div>
+                        <div class="w-3 h-3 bg-zinc-700"></div>
+                        <div class="w-3 h-3 bg-[#00ffcc] shadow-[0_0_8px_#00ffcc]"></div>
                     </div>
                 </div>
-
-                <!-- Messages Area -->
-                <div id="messages-container"
-                    class="flex-1 overflow-y-auto px-6 pt-6 pb-2 space-y-5 chat-scroll bg-gradient-to-b from-[#0c0a09] to-[#121214]">
-                    <!-- Messages will be injected here -->
+                <div class="flex flex-col items-center justify-center h-24">
+                    <span
+                        class="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2">MUNN_FUN_CORE</span>
+                    <h3 class="text-2xl font-bold text-zinc-200 uppercase">v2.0.0</h3>
+                    <div class="text-[10px] text-[#00ffcc]/50 mt-2 uppercase tracking-widest">>>> Mining blocks...</div>
                 </div>
+            </div>
 
-                <!-- Input Area -->
-                <div class="p-4 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto">
-                    <form id="chat-form" class="flex flex-col gap-2 relative max-w-5xl mx-auto">
-                        <div
-                            class="flex items-center bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-inner">
-                            <div class="px-4 text-zinc-500">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
-                                    </path>
-                                </svg>
-                            </div>
-                            <input type="text" id="message-input" autocomplete="off"
-                                placeholder="Transmit packet to global relay... (@gemini to query AI)"
-                                class="flex-1 py-4 bg-transparent focus:outline-none text-[15px] text-zinc-100 placeholder-zinc-500 font-medium w-full" />
-                            <div class="px-2">
-                                <button type="submit"
-                                    class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-6 py-2.5 font-bold transition-all text-sm flex items-center shadow-lg hover:shadow-indigo-500/25">
-                                    SEND <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </main>
         </div>
-    </div>
+    </main>
 
-
-
-    <!-- Socket.IO via npm/Express -->
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="/app.js"></script>
+    <script>
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('nav-time').textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
+                ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        updateTime();
+        setInterval(updateTime, 60000);
+    </script>
 </body>
 
 </html>
