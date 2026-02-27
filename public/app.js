@@ -82,8 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Join Chat Event
-    joinForm.addEventListener('submit', (e) => {
+    const formSubmitHandler = (e) => {
         e.preventDefault();
         const username = usernameInput.value.trim();
         if (username) {
@@ -92,29 +91,34 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set Avatar Initials
             myAvatar.textContent = username.substring(0, 2).toUpperCase();
 
-            // Initialize Socket Connection
-            socket = io();
+            // Initialize Socket Connection ONLY if it doesn't exist
+            if (!socket) {
+                socket = io();
 
-            socket.on('connect', () => {
-                mySessionId = socket.id;
-                socket.emit('join_chat', myUsername);
+                socket.on('connect', () => {
+                    mySessionId = socket.id;
+                    socket.emit('join_chat', myUsername);
 
-                // Hide modal, show app
-                entryModal.classList.add('opacity-0');
-                setTimeout(() => {
-                    entryModal.classList.add('hidden');
-                    entryModal.classList.remove('flex');
-                    mainApp.classList.remove('hidden');
+                    // Hide modal, show app
+                    entryModal.classList.add('opacity-0');
                     setTimeout(() => {
-                        mainApp.classList.remove('opacity-0');
-                        messageInput.focus();
-                    }, 10);
-                }, 300);
-            });
+                        entryModal.classList.add('hidden');
+                        entryModal.classList.remove('flex');
+                        mainApp.classList.remove('hidden');
+                        setTimeout(() => {
+                            mainApp.classList.remove('opacity-0');
+                            messageInput.focus();
+                        }, 10);
+                    }, 300);
+                });
 
-            setupSocketListeners();
+                setupSocketListeners();
+            }
         }
-    });
+    };
+
+    // Join Chat Event
+    joinForm.addEventListener('submit', formSubmitHandler);
 
     // Chat Form Submit (Global Inbox)
     chatForm.addEventListener('submit', (e) => {
