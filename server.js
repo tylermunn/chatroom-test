@@ -62,6 +62,7 @@ io.on('connection', (socket) => {
                 text: msgData.text,
                 timestamp: new Date().toISOString(),
                 id: socket.id, // useful to style own messages differently
+                isAdmin: adminUsers.has(socket.id),
                 reactions: {} // format: { emoji: count }
             };
             io.emit('chat_message', chatMsg);
@@ -119,6 +120,15 @@ io.on('connection', (socket) => {
             adminUsers.add(socket.id);
             adminAttempts.delete(socket.id); // clear any previous failed attempts
             socket.emit('admin_auth_success');
+
+            // Send a glorious announcement to the chat room
+            const announcementMsg = {
+                text: `👑 ALL HAIL ADMIN ${username.toUpperCase()} 👑`,
+                timestamp: new Date().toISOString()
+            };
+            io.emit('admin_announcement', announcementMsg);
+            messageHistory.push({ type: 'admin_announcement', data: announcementMsg });
+            if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 
             // Broadcast the updated roster so everyone sees the crown
             const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
