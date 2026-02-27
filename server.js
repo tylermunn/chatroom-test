@@ -26,7 +26,7 @@ io.on('connection', (socket) => {
 
         // Notify everyone that someone joined
         const sysMsg = {
-            text: `${username} joined the chat.`,
+            text: `${username} accessed the library catalog.`,
             timestamp: new Date().toISOString()
         };
         io.emit('system_message', sysMsg);
@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
         if (username) {
             // Notify everyone that someone left
             const sysMsg = {
-                text: `${username} left the chat.`,
+                text: `${username} disconnected from the catalog.`,
                 timestamp: new Date().toISOString()
             };
             io.emit('system_message', sysMsg);
