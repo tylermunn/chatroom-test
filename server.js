@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
