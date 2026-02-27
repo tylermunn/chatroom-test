@@ -25,6 +25,7 @@ const MAX_HISTORY = 100; // Store last 100 messages
 // Simple pin for admin access
 const ADMIN_PIN = '0620';
 const adminUsers = new Set(); // store socket.ids of admins
+const adminAttempts = new Map(); // tracking failed attempts for kicks
 
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
@@ -45,7 +46,7 @@ io.on('connection', (socket) => {
         if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 
         // Send updated user list to everyone
-        const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name }));
+        const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
         io.emit('update_roster', roster);
 
         // Send chat history to the newly joined user
@@ -111,11 +112,46 @@ io.on('connection', (socket) => {
 
     // --- Admin Handlers ---
     socket.on('admin_auth', (pin) => {
+        const username = activeUsers.get(socket.id);
+        if (!username) return;
+
         if (pin === ADMIN_PIN) {
             adminUsers.add(socket.id);
+            adminAttempts.delete(socket.id); // clear any previous failed attempts
             socket.emit('admin_auth_success');
+
+            // Broadcast the updated roster so everyone sees the crown
+            const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
+            io.emit('update_roster', roster);
         } else {
-            socket.emit('admin_auth_fail');
+            let attempts = (adminAttempts.get(socket.id) || 0) + 1;
+            adminAttempts.set(socket.id, attempts);
+
+            if (attempts >= 3) {
+                // Kick them
+                adminAttempts.delete(socket.id);
+                const sysMsg = {
+                    text: `SECURITY ALERT: ${username} was kicked for 3 incorrect administrator code attempts.`,
+                    timestamp: new Date().toISOString()
+                };
+                io.emit('system_message', sysMsg);
+                messageHistory.push({ type: 'system', data: sysMsg });
+                if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+
+                socket.emit('kicked_out');
+                setTimeout(() => socket.disconnect(), 500);
+            } else {
+                // Just log to chat
+                const sysMsg = {
+                    text: `${username} inputted an incorrect administrator code.`,
+                    timestamp: new Date().toISOString()
+                };
+                io.emit('system_message', sysMsg);
+                messageHistory.push({ type: 'system', data: sysMsg });
+                if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+
+                socket.emit('admin_auth_fail');
+            }
         }
     });
 
@@ -168,7 +204,7 @@ io.on('connection', (socket) => {
             adminUsers.delete(socket.id);
 
             // Send updated user list to everyone
-            const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name }));
+            const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
             io.emit('update_roster', roster);
         }
         console.log('User disconnected:', socket.id);
