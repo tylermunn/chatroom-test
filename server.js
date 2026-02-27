@@ -19,8 +19,12 @@ app.get('/', (req, res) => {
 const activeUsers = new Map();
 
 // Store recent message history
-const messageHistory = [];
+let messageHistory = [];
 const MAX_HISTORY = 100; // Store last 100 messages
+
+// Simple pin for admin access
+const ADMIN_PIN = '0620';
+const adminUsers = new Set(); // store socket.ids of admins
 
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
@@ -105,6 +109,46 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- Admin Handlers ---
+    socket.on('admin_auth', (pin) => {
+        if (pin === ADMIN_PIN) {
+            adminUsers.add(socket.id);
+            socket.emit('admin_auth_success');
+        } else {
+            socket.emit('admin_auth_fail');
+        }
+    });
+
+    socket.on('admin_delete_msg', (msgId) => {
+        if (adminUsers.has(socket.id)) {
+            // Remove from history
+            messageHistory = messageHistory.filter(m => !(m.type === 'chat' && m.data.msgId === msgId));
+            // Tell everyone to remove it from UI
+            io.emit('delete_message', msgId);
+        }
+    });
+
+    socket.on('admin_kick_user', (targetId) => {
+        if (adminUsers.has(socket.id)) {
+            // Tell the target to reload/leave
+            io.to(targetId).emit('kicked_out');
+
+            // Wait a split second, then force disconnect the socket
+            setTimeout(() => {
+                const targetSocket = io.sockets.sockets.get(targetId);
+                if (targetSocket) targetSocket.disconnect();
+            }, 500);
+        }
+    });
+
+    socket.on('admin_purge_all', () => {
+        if (adminUsers.has(socket.id)) {
+            messageHistory = [];
+            io.emit('purge_all_messages');
+        }
+    });
+    // ----------------------
+
     socket.on('disconnect', () => {
         const username = activeUsers.get(socket.id);
         if (username) {
@@ -121,6 +165,7 @@ io.on('connection', (socket) => {
 
             // Remove from active users
             activeUsers.delete(socket.id);
+            adminUsers.delete(socket.id);
 
             // Send updated user list to everyone
             const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name }));

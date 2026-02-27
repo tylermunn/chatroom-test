@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentDatetime = document.getElementById('current-datetime');
     const myAvatar = document.getElementById('my-avatar');
 
+    // Admin DOM Elements
+    const adminTrigger = document.getElementById('admin-trigger');
+    const adminPanel = document.getElementById('admin-panel');
+    const purgeBtn = document.getElementById('purge-btn');
+
     const dmContainer = document.getElementById('dm-container');
 
     // Audio for notification
@@ -28,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let mySessionId = '';
     let isWindowActive = true;
     let unreadCount = 0;
+    let isAdmin = false;
 
     // Track open DMs: targetId -> DOM Element
     const openDMs = new Map();
@@ -59,6 +65,28 @@ document.addEventListener('DOMContentLoaded', () => {
             document.title = 'Mail - Outlook';
             document.getElementById('unread-badge').classList.add('hidden');
         }
+    }
+
+    // Admin Actions
+    if (adminTrigger) {
+        adminTrigger.addEventListener('click', () => {
+            if (!isAdmin) {
+                const pin = prompt("Enter Settings PIN:");
+                if (pin) {
+                    socket.emit('admin_auth', pin);
+                }
+            } else {
+                alert("Already authenticated as Admin.");
+            }
+        });
+    }
+
+    if (purgeBtn) {
+        purgeBtn.addEventListener('click', () => {
+            if (isAdmin && confirm("Are you sure you want to purge all messages?")) {
+                socket.emit('admin_purge_all');
+            }
+        });
     }
 
     // Join Chat Event
@@ -178,6 +206,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTitle();
             }
         });
+
+        // Admin Auth & Events
+        socket.on('admin_auth_success', () => {
+            isAdmin = true;
+            if (adminPanel) adminPanel.classList.remove('hidden');
+            alert("Admin privileges granted. (New UI tools will appear on new messages)");
+        });
+
+        socket.on('admin_auth_fail', () => {
+            alert("Incorrect PIN.");
+        });
+
+        socket.on('delete_message', (msgId) => {
+            const el = document.getElementById(`msg-${msgId}`);
+            if (el) el.remove();
+        });
+
+        socket.on('purge_all_messages', () => {
+            messagesContainer.innerHTML = '';
+        });
+
+        socket.on('kicked_out', () => {
+            alert("You have been kicked by an administrator.");
+            window.location.reload();
+        });
     }
 
     // Open DM Window
@@ -246,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const initial = msg.username.substring(0, 2).toUpperCase();
 
         const msgWrapper = document.createElement('div');
+        msgWrapper.id = `msg-${msg.msgId}`;
         msgWrapper.className = `group flex gap-3 w-full border-b border-[#f3f2f1] pb-4 ${isMe ? 'flex-row-reverse text-right' : ''}`;
 
         // Render existing reactions
@@ -271,14 +325,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${escapeHTML(msg.text)}
                 </div>
                 
-                <!-- Reaction Display / Action Bay -->
                 <div class="mt-2 flex gap-2 items-center ${isMe ? 'flex-row-reverse' : ''}">
                     <div id="reactions-${msg.msgId}" class="flex gap-1 flex-wrap">${rxHTML}</div>
                     
-                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 ${isMe ? 'mr-2' : 'ml-2'}">
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 items-center ${isMe ? 'mr-2' : 'ml-2'}">
                         <button onclick="reactToMessage('${msg.msgId}', '👍')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">👍</button>
                         <button onclick="reactToMessage('${msg.msgId}', '😂')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">😂</button>
                         <button onclick="reactToMessage('${msg.msgId}', '❤️')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">❤️</button>
+                        ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-xs text-red-500 hover:text-red-700 ml-2 border border-red-200 px-2 py-0.5 rounded">Delete</button>` : ''}
                     </div>
                 </div>
             </div>
@@ -288,10 +342,22 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer.appendChild(msgWrapper);
     }
 
-    // Expose reaction func globally
+    // Expose funcs globally
     window.reactToMessage = function (msgId, reaction) {
         if (socket) {
             socket.emit('message_reaction', { msgId, reaction });
+        }
+    }
+
+    window.deleteMessage = function (msgId) {
+        if (socket && confirm("Delete this message?")) {
+            socket.emit('admin_delete_msg', msgId);
+        }
+    }
+
+    window.kickUser = function (targetId) {
+        if (socket && confirm("Kick this user from the session?")) {
+            socket.emit('admin_kick_user', targetId);
         }
     }
 
@@ -333,9 +399,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 ${!isMe ? `
-                <button class="opacity-0 group-hover:opacity-100 bg-white border border-[#edebe9] px-2 py-1 rounded shadow-sm text-xs font-medium text-[#0f6cbd] hover:bg-[#0f6cbd] hover:text-white transition-all open-dm-btn">
-                    Message
-                </button>
+                <div class="flex items-center">
+                    <button class="opacity-0 group-hover:opacity-100 bg-white border border-[#edebe9] px-2 py-1 rounded shadow-sm text-xs font-medium text-[#0f6cbd] hover:bg-[#0f6cbd] hover:text-white transition-all open-dm-btn">
+                        Message
+                    </button>
+                    ${isAdmin ? `<button class="ml-2 bg-white border border-red-200 px-2 py-1 rounded shadow-sm text-xs font-medium text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 kick-user-btn">Kick</button>` : ''}
+                </div>
                 ` : ''}
             `;
 
@@ -345,6 +414,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.stopPropagation();
                     openDMWindow(user.id, user.username);
                 });
+
+                if (isAdmin) {
+                    li.querySelector('.kick-user-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        kickUser(user.id);
+                    });
+                }
+
                 li.addEventListener('click', () => {
                     openDMWindow(user.id, user.username);
                 });
