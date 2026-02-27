@@ -63,7 +63,6 @@ io.on('connection', (socket) => {
         const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
         if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
         io.emit('update_roster', roster);
-        io.emit('update_roster', roster);
 
         // Send chat history to the newly joined user
         socket.emit('chat_history', messageHistory);
