@@ -61,6 +61,7 @@ io.on('connection', (socket) => {
 
         // Send updated user list to everyone
         const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
+        if (ai) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
         io.emit('update_roster', roster);
 
         // Send chat history to the newly joined user
@@ -182,6 +183,7 @@ io.on('connection', (socket) => {
 
             // Broadcast the updated roster so everyone sees the crown
             const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
+            if (ai) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
             io.emit('update_roster', roster);
         } else {
             let attempts = (adminAttempts.get(socket.id) || 0) + 1;
@@ -265,6 +267,7 @@ io.on('connection', (socket) => {
 
             // Send updated user list to everyone
             const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
+            if (ai) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
             io.emit('update_roster', roster);
         }
         console.log('User disconnected:', socket.id);

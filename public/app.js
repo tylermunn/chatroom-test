@@ -403,25 +403,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.className = 'flex items-center justify-between px-4 py-3 hover:bg-[#f3f2f1] transition-colors cursor-pointer group ' + (isMe ? 'bg-[#f3f2f1]' : '');
 
-            const initial = user.username.substring(0, 2).toUpperCase();
+            const initial = user.isBot ? '✨' : user.username.substring(0, 2).toUpperCase();
+            const statusText = user.isBot ? 'Listening - AI Assistant' : 'Available - Online';
 
             li.innerHTML = `
                 <div class="flex items-center gap-3">
                     <div class="relative">
-                        <div class="w-10 h-10 rounded-full ${isMe ? 'bg-[#0f6cbd] text-white' : 'bg-[#d1e8ff] text-[#0f6cbd]'} flex items-center justify-center font-semibold text-sm">
-                            ${initial}
+                        <div class="w-10 h-10 rounded-full ${isMe ? 'bg-[#0f6cbd] text-white' : user.isBot ? 'bg-purple-100 text-purple-700' : 'bg-[#d1e8ff] text-[#0f6cbd]'} flex items-center justify-center font-semibold text-sm shadow-sm">
+                            ${user.isBot ? `<svg class="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
                         </div>
-                        <div class="absolute bottom-0 right-0 w-3 h-3 bg-[#7fba00] border-2 border-white rounded-full"></div>
+                        <div class="absolute bottom-0 right-0 w-3 h-3 ${user.isBot ? 'bg-purple-500' : 'bg-[#7fba00]'} border-2 border-white rounded-full"></div>
                     </div>
                     <div class="flex flex-col">
-                        <span class="text-[15px] font-medium text-[#242424] group-hover:text-[#0f6cbd] transition-colors flex items-center gap-1">
+                        <span class="text-[15px] font-medium ${user.isBot ? 'text-purple-700' : 'text-[#242424]'} group-hover:text-[#0f6cbd] transition-colors flex items-center gap-1">
                             ${escapeHTML(user.username)} ${isMe ? '(Me)' : ''}
                             ${user.isAdmin ? `<svg class="w-3.5 h-3.5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
+                            ${user.isBot ? `<svg class="w-3 h-3 text-purple-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : ''}
                         </span>
-                        <span class="text-xs text-[#605e5c]">Available - Online</span>
+                        <span class="text-xs text-[#605e5c]">${statusText}</span>
                     </div>
                 </div>
-                ${!isMe ? `
+                ${!isMe && !user.isBot ? `
                 <div class="flex items-center">
                     <button class="opacity-0 group-hover:opacity-100 bg-white border border-[#edebe9] px-2 py-1 rounded shadow-sm text-xs font-medium text-[#0f6cbd] hover:bg-[#0f6cbd] hover:text-white transition-all open-dm-btn">
                         Message
@@ -431,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ` : ''}
             `;
 
-            if (!isMe) {
+            if (!isMe && !user.isBot) {
                 // DM Click Event
                 li.querySelector('.open-dm-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
