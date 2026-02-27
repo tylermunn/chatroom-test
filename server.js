@@ -125,44 +125,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('message_reaction', (data) => {
-        const { msgId, reaction } = data;
-        const username = activeUsers.get(socket.id);
-        if (username) {
-            // Find message in history
-            const msgObj = messageHistory.find(m => m.type === 'chat' && m.data.msgId === msgId);
-            if (msgObj) {
-                if (!msgObj.data.reactions) msgObj.data.reactions = {};
-                msgObj.data.reactions[reaction] = (msgObj.data.reactions[reaction] || 0) + 1;
-            }
-            // Broadcast reaction
-            io.emit('message_reaction', { msgId, reaction, username });
-        }
-    });
-
-    socket.on('private_message', (data) => {
-        const { targetId, text } = data;
-        const senderName = activeUsers.get(socket.id);
-        if (senderName) {
-            // Send to target
-            io.to(targetId).emit('private_message', {
-                senderId: socket.id,
-                senderName: senderName,
-                text: text,
-                timestamp: new Date().toISOString()
-            });
-            // Send back to sender so they can see it too
-            socket.emit('private_message', {
-                senderId: socket.id,
-                senderName: senderName,
-                text: text,
-                timestamp: new Date().toISOString(),
-                isEcho: true,
-                targetId: targetId
-            });
-        }
-    });
-
     // --- Admin Handlers ---
     socket.on('admin_auth', (pin) => {
         const username = activeUsers.get(socket.id);

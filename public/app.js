@@ -21,8 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminPanel = document.getElementById('admin-panel');
     const purgeBtn = document.getElementById('purge-btn');
 
-    const dmContainer = document.getElementById('dm-container');
-
     // Audio for notification
     const popSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
     popSound.volume = 0.5;
@@ -35,13 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let unreadCount = 0;
     let isAdmin = false;
 
-    // Track open DMs: targetId -> DOM Element
-    const openDMs = new Map();
-
     // Setup Date/Time Header
     function updateTime() {
         const now = new Date();
-        currentDatetime.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) +
+        currentDatetime.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
             ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     updateTime();
@@ -59,11 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTitle() {
         if (unreadCount > 0) {
-            document.title = `(${unreadCount}) Mail - Outlook`;
-            document.getElementById('unread-badge').classList.remove('hidden');
+            document.title = `(${unreadCount}) Relay_Net`;
         } else {
-            document.title = 'Mail - Outlook';
-            document.getElementById('unread-badge').classList.add('hidden');
+            document.title = 'Secure Relay - Global Connect';
         }
     }
 
@@ -179,39 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
             updateActiveUsers(users);
         });
 
-        // Handle Reactions
-        socket.on('message_reaction', (data) => {
-            const { msgId, reaction, username } = data;
-            const reactContainer = document.getElementById(`reactions-${msgId}`);
-            if (reactContainer) {
-                // simple visual update, just append or increment
-                let exists = reactContainer.querySelector(`[data-emoji="${reaction}"]`);
-                if (exists) {
-                    let countSpan = exists.querySelector('.count');
-                    countSpan.textContent = parseInt(countSpan.textContent) + 1;
-                } else {
-                    reactContainer.innerHTML += `<span class="inline-flex items-center gap-1 bg-[#edebe9] text-xs px-1.5 py-0.5 rounded cursor-help" data-emoji="${reaction}" title="${username} reacted">
-                        ${reaction} <span class="count text-[#605e5c]">1</span>
-                    </span>`;
-                }
-            }
-        });
-
-        // Handle Private Messages
-        socket.on('private_message', (msg) => {
-            const companionId = msg.isEcho ? msg.targetId : msg.senderId;
-            const companionName = msg.isEcho ? "To: User" : msg.senderName; // simplified 
-
-            openDMWindow(companionId, companionName);
-            appendDM(companionId, msg);
-
-            if (!msg.isEcho && !isWindowActive) {
-                popSound.play().catch(e => { });
-                unreadCount++;
-                updateTitle();
-            }
-        });
-
         // Admin Auth & Events
         socket.on('admin_auth_success', () => {
             isAdmin = true;
@@ -238,66 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Open DM Window
-    function openDMWindow(targetId, targetName) {
-        if (openDMs.has(targetId)) return; // already open
-
-        const dmHTML = document.createElement('div');
-        dmHTML.className = 'dm-window w-[280px] h-[350px] bg-white flex flex-col rounded-t-lg overflow-hidden pointer-events-auto shadow-xl';
-        dmHTML.innerHTML = `
-            <div class="outlook-blue text-white px-3 py-2 flex justify-between items-center shrink-0 cursor-pointer">
-                <span class="font-medium text-sm truncate pr-2 w-48">${escapeHTML(targetName)}</span>
-                <button class="hover:bg-black/20 rounded p-0.5 dm-close">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#f3f2f1] text-sm dm-messages"></div>
-            <form class="dm-form border-t border-[#edebe9] p-2 bg-white flex gap-2">
-                <input type="text" class="dm-input flex-1 px-2 mb-1 outline-none text-sm placeholder-[#a19f9d]" placeholder="Type a message...">
-                <button type="submit" class="text-[#0f6cbd] p-1"><svg class="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg></button>
-            </form>
-        `;
-
-        // Bind events
-        const closeBtn = dmHTML.querySelector('.dm-close');
-        closeBtn.onclick = () => {
-            dmHTML.remove();
-            openDMs.delete(targetId);
-        };
-
-        const form = dmHTML.querySelector('.dm-form');
-        const input = dmHTML.querySelector('.dm-input');
-
-        form.onsubmit = (e) => {
-            e.preventDefault();
-            const text = input.value.trim();
-            if (text && socket) {
-                socket.emit('private_message', { targetId, text });
-                input.value = '';
-            }
-        };
-
-        dmContainer.appendChild(dmHTML);
-        openDMs.set(targetId, { element: dmHTML, messagesContainer: dmHTML.querySelector('.dm-messages') });
-    }
-
-    function appendDM(targetId, msg) {
-        const dmData = openDMs.get(targetId);
-        if (!dmData) return;
-
-        const isMe = msg.isEcho;
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
-        msgDiv.innerHTML = `
-            <div class="max-w-[85%] ${isMe ? 'bg-[#d1e8ff] text-[#242424]' : 'bg-white text-[#242424] border border-[#edebe9]'} rounded px-3 py-1.5 shadow-sm">
-                ${escapeHTML(msg.text)}
-            </div>
-        `;
-        dmData.messagesContainer.appendChild(msgDiv);
-        dmData.messagesContainer.scrollTop = dmData.messagesContainer.scrollHeight;
-    }
-
-
     // Global UI Helpers
     function renderMessage(msg, isMe) {
         const timeString = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -305,78 +205,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const msgWrapper = document.createElement('div');
         msgWrapper.id = `msg-${msg.msgId}`;
-        msgWrapper.className = `group flex gap-3 w-full border-b border-[#f3f2f1] pb-4 ${isMe ? 'flex-row-reverse text-right' : ''}`;
-
-        // Render existing reactions
-        let rxHTML = '';
-        if (msg.reactions) {
-            for (const [emoji, count] of Object.entries(msg.reactions)) {
-                rxHTML += `<span class="inline-flex items-center gap-1 bg-[#edebe9] text-xs px-1.5 py-0.5 rounded cursor-help" data-emoji="${emoji}">
-                    ${emoji} <span class="count text-[#605e5c]">${count}</span>
-                </span>`;
-            }
-        }
+        msgWrapper.className = `group flex gap-4 w-full ${isMe ? 'flex-row-reverse text-right' : ''}`;
 
         const innerHTML = `
-            <div class="w-10 h-10 shrink-0 rounded-full font-semibold flex items-center justify-center text-sm shadow-sm ${isMe ? 'bg-[#0f6cbd] text-white' : msg.isBot ? 'bg-purple-100 text-purple-700 text-lg' : 'bg-[#d1e8ff] text-[#0f6cbd]'} mt-1">
-                ${initial}
-            </div>
-            <div class="flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}">
-                <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
-                    <span class="font-semibold text-[15px] ${msg.isAdmin ? 'text-yellow-600 font-bold' : msg.isBot ? 'text-purple-700 font-bold' : 'text-[#242424]'} flex items-center gap-1">
-                        ${escapeHTML(msg.username)} 
-                        ${msg.isAdmin ? `<svg class="w-3.5 h-3.5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
-                    </span>
-                    <span class="text-xs text-[#605e5c]">${timeString}</span>
+                <div class="w-10 h-10 shrink-0 rounded-full font-bold flex items-center justify-center text-sm shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-lg' : 'bg-zinc-800 text-zinc-300'} mt-1 relative">
+                    ${msg.isBot ? `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
                 </div>
-                <div class="text-[15px] text-[#242424] leading-relaxed max-w-[90%] text-left whitespace-pre-wrap ${isMe ? 'bg-[#f3f2f1] px-3 py-2 rounded-lg inline-block' : msg.isBot ? 'bg-purple-50 px-3 py-2 rounded-lg inline-block text-purple-900 border border-purple-100 shadow-sm' : ''}">
-                    ${escapeHTML(msg.text)}
-                </div>
-                
-                <div class="mt-2 flex gap-2 items-center ${isMe ? 'flex-row-reverse' : ''}">
-                    <div id="reactions-${msg.msgId}" class="flex gap-1 flex-wrap">${rxHTML}</div>
+                <div class="flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                    <div class="flex items-baseline gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : ''}">
+                        <span class="font-bold text-[14px] tracking-wide uppercase ${msg.isAdmin ? 'text-amber-400' : msg.isBot ? 'text-indigo-400' : 'text-zinc-300'} flex items-center gap-1.5">
+                            ${escapeHTML(msg.username)} 
+                            ${msg.isAdmin ? `<svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
+                        </span>
+                        <span class="text-[11px] font-mono text-zinc-600">${timeString}</span>
+                    </div>
+                    <div class="text-[14.5px] leading-relaxed max-w-[85%] text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-4 py-2.5 text-white rounded-tr-sm shadow-md' : msg.isBot ? 'bg-indigo-500/5 px-4 py-3 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-lg' : 'bg-zinc-800/80 border border-zinc-700/50 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md'} font-medium">
+                        ${escapeHTML(msg.text)}
+                    </div>
                     
-                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 items-center ${isMe ? 'mr-2' : 'ml-2'}">
-                        <button onclick="reactToMessage('${msg.msgId}', '👍')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">👍</button>
-                        <button onclick="reactToMessage('${msg.msgId}', '😂')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">😂</button>
-                        <button onclick="reactToMessage('${msg.msgId}', '❤️')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">❤️</button>
-                        ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-xs text-red-500 hover:text-red-700 ml-2 border border-red-200 px-2 py-0.5 rounded">Delete</button>` : ''}
+                    <div class="mt-1 flex gap-2 items-center h-6 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
+                        ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-[11px] uppercase tracking-wider font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-2 py-0.5 border border-transparent hover:border-red-500/20 rounded transition-colors">Terminate</button>` : ''}
                     </div>
                 </div>
-            </div>
-        `;
+            `;
 
         msgWrapper.innerHTML = innerHTML;
         messagesContainer.appendChild(msgWrapper);
     }
 
-    // Expose funcs globally
-    window.reactToMessage = function (msgId, reaction) {
-        if (socket) {
-            socket.emit('message_reaction', { msgId, reaction });
-        }
-    }
-
     window.deleteMessage = function (msgId) {
-        if (socket && confirm("Delete this message?")) {
+        if (socket && confirm("DESTRUCT: Remove this node permanently?")) {
             socket.emit('admin_delete_msg', msgId);
         }
     }
 
     window.kickUser = function (targetId) {
-        if (socket && confirm("Kick this user from the session?")) {
+        if (socket && confirm("TERMINATE: Disconnect user from network?")) {
             socket.emit('admin_kick_user', targetId);
         }
     }
 
     function appendSystemMessage(text) {
         const msgWrapper = document.createElement('div');
-        msgWrapper.className = 'flex justify-center my-2';
+        msgWrapper.className = 'flex justify-center my-3';
         msgWrapper.innerHTML = `
-            <div class="text-[#605e5c] text-xs font-medium border-t border-b border-[#edebe9] py-1 px-4 w-full text-center">
-                ${escapeHTML(text)}
-            </div>
-        `;
+                <div class="text-zinc-500 text-[11px] font-mono uppercase tracking-wider border-y border-zinc-800/50 py-1.5 px-6 w-full text-center">
+                    // SYS: ${escapeHTML(text)}
+                </div>
+            `;
         messagesContainer.appendChild(msgWrapper);
         scrollToBottom();
     }
@@ -385,71 +261,64 @@ document.addEventListener('DOMContentLoaded', () => {
         const msgWrapper = document.createElement('div');
         msgWrapper.className = 'flex justify-center my-6';
         msgWrapper.innerHTML = `
-            <div class="bg-gradient-to-r from-yellow-100 via-yellow-50 to-yellow-100 text-yellow-800 border-2 border-yellow-300 font-bold uppercase tracking-widest py-3 px-8 rounded-full shadow-lg transform scale-105 animate-pulse text-center w-3/4">
-                ${escapeHTML(text)}
-            </div>
-        `;
+                <div class="bg-gradient-to-r from-yellow-100 via-yellow-50 to-yellow-100 text-yellow-800 border-2 border-yellow-300 font-bold uppercase tracking-widest py-3 px-8 rounded-full shadow-lg transform scale-105 animate-pulse text-center w-3/4">
+                    ${escapeHTML(text)}
+                </div>
+            `;
         messagesContainer.appendChild(msgWrapper);
         scrollToBottom();
     }
 
     function updateActiveUsers(users) {
-        activeCount.textContent = users.length;
-        navCount.textContent = users.length;
+        if (activeCount) activeCount.textContent = users.length;
+        if (navCount) navCount.textContent = users.length;
 
         activeUsersList.innerHTML = '';
         users.forEach(user => {
             const isMe = user.id === mySessionId;
             const li = document.createElement('li');
-            li.className = 'flex items-center justify-between px-4 py-3 hover:bg-[#f3f2f1] transition-colors cursor-pointer group ' + (isMe ? 'bg-[#f3f2f1]' : '');
+            li.className = 'flex items-center justify-between px-5 py-3 hover:bg-zinc-800/50 transition-colors cursor-pointer group ' + (isMe ? 'bg-zinc-800/50' : '');
 
             const initial = user.isBot ? '✨' : user.username.substring(0, 2).toUpperCase();
-            const statusText = user.isBot ? 'Listening - AI Assistant' : 'Available - Online';
+            const statusText = user.isBot ? 'Listening - AI Kernel' : 'Established - Online';
 
             li.innerHTML = `
-                <div class="flex items-center gap-3">
-                    <div class="relative">
-                        <div class="w-10 h-10 rounded-full ${isMe ? 'bg-[#0f6cbd] text-white' : user.isBot ? 'bg-purple-100 text-purple-700' : 'bg-[#d1e8ff] text-[#0f6cbd]'} flex items-center justify-center font-semibold text-sm shadow-sm">
-                            ${user.isBot ? `<svg class="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <div class="w-10 h-10 rounded-full ${isMe ? 'bg-indigo-600 text-white border-2 border-indigo-500' : user.isBot ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30' : 'bg-zinc-800 border border-zinc-700 text-zinc-300'} flex items-center justify-center font-bold text-sm shadow-md">
+                                ${user.isBot ? `<svg class="w-6 h-6 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
+                            </div>
+                            <div class="absolute bottom-0 right-0 w-3 h-3 ${user.isBot ? 'bg-indigo-500' : 'bg-emerald-500'} border-2 border-[#18181b] rounded-full"></div>
                         </div>
-                        <div class="absolute bottom-0 right-0 w-3 h-3 ${user.isBot ? 'bg-purple-500' : 'bg-[#7fba00]'} border-2 border-white rounded-full"></div>
+                        <div class="flex flex-col">
+                            <span class="text-[14px] font-bold uppercase tracking-wide ${user.isBot ? 'text-indigo-400' : user.isAdmin ? 'text-amber-400' : 'text-zinc-200'} group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                                ${escapeHTML(user.username)} ${isMe ? '<span class="text-zinc-500 font-normal">*(Me)*</span>' : ''}
+                                ${user.isAdmin ? `<svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
+                            </span>
+                            <span class="text-[11px] font-mono text-zinc-500">${statusText}</span>
+                        </div>
                     </div>
-                    <div class="flex flex-col">
-                        <span class="text-[15px] font-medium ${user.isBot ? 'text-purple-700' : 'text-[#242424]'} group-hover:text-[#0f6cbd] transition-colors flex items-center gap-1">
-                            ${escapeHTML(user.username)} ${isMe ? '(Me)' : ''}
-                            ${user.isAdmin ? `<svg class="w-3.5 h-3.5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
-                            ${user.isBot ? `<svg class="w-3 h-3 text-purple-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : ''}
-                        </span>
-                        <span class="text-xs text-[#605e5c]">${statusText}</span>
+                    ${!isMe && !user.isBot ? `
+                    <div class="flex items-center">
+                        ${isAdmin ? `<button class="opacity-0 group-hover:opacity-100 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded shadow-sm text-[11px] font-bold uppercase tracking-wider text-red-500 hover:bg-red-500/20 transition-all kick-user-btn">Drop</button>` : ''}
                     </div>
-                </div>
-                ${!isMe && !user.isBot ? `
-                <div class="flex items-center">
-                    <button class="opacity-0 group-hover:opacity-100 bg-white border border-[#edebe9] px-2 py-1 rounded shadow-sm text-xs font-medium text-[#0f6cbd] hover:bg-[#0f6cbd] hover:text-white transition-all open-dm-btn">
-                        Message
-                    </button>
-                    ${isAdmin ? `<button class="ml-2 bg-white border border-red-200 px-2 py-1 rounded shadow-sm text-xs font-medium text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 kick-user-btn">Kick</button>` : ''}
-                </div>
-                ` : ''}
-            `;
+                    ` : ''}
+                `;
 
-            if (!isMe && !user.isBot) {
-                // DM Click Event
-                li.querySelector('.open-dm-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    openDMWindow(user.id, user.username);
+            if (user.isBot) {
+                // Clicking AI writes @gemini
+                li.addEventListener('click', () => {
+                    const input = document.getElementById('message-input');
+                    input.value = `@gemini ` + input.value;
+                    input.focus();
                 });
-
+            } else if (!isMe) {
                 if (isAdmin) {
                     li.querySelector('.kick-user-btn').addEventListener('click', (e) => {
                         e.stopPropagation();
                         kickUser(user.id);
                     });
                 }
-
-                li.addEventListener('click', () => {
-                    openDMWindow(user.id, user.username);
-                });
             }
 
             activeUsersList.appendChild(li);
