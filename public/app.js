@@ -21,6 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminPanel = document.getElementById('admin-panel');
     const purgeBtn = document.getElementById('purge-btn');
 
+    // Snow AI DOM Elements
+    const openSnowBtn = document.getElementById('open-snow-btn');
+    const closeSnowBtn = document.getElementById('close-snow-btn');
+    const snowModal = document.getElementById('snow-modal');
+    const snowContent = document.getElementById('snow-content');
+    const currentWeather = document.getElementById('current-weather');
+
     // Audio for notification
     const popSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
     popSound.volume = 0.5;
@@ -33,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let unreadCount = 0;
     let isAdmin = false;
 
-    // Setup Date/Time Header
+    // Setup Date/Time Header and Current Weather
     function updateTime() {
         const now = new Date();
         currentDatetime.textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
@@ -41,6 +48,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateTime();
     setInterval(updateTime, 60000);
+
+    // Initial weather fetch widget for top Nav
+    async function updateCurrentWeather() {
+        try {
+            if (!currentWeather) return;
+            const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=43.0481&longitude=-76.1474&current_weather=true&temperature_unit=fahrenheit');
+            const data = await res.json();
+            currentWeather.textContent = `${Math.round(data.current_weather.temperature)}°F`;
+        } catch (e) {
+            console.error("Weather offline", e);
+        }
+    }
+    updateCurrentWeather();
 
     // Track Window Focus
     window.addEventListener('focus', () => {
@@ -79,6 +99,65 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isAdmin && confirm("Are you sure you want to purge all messages?")) {
                 socket.emit('admin_purge_all');
             }
+        });
+    }
+
+    // Snow Predictor Integration
+    if (openSnowBtn) {
+        openSnowBtn.addEventListener('click', async () => {
+            snowModal.classList.remove('hidden');
+            setTimeout(() => snowModal.classList.remove('opacity-0'), 10);
+
+            // Re-render empty skeleton every time it opens
+            snowContent.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-10 text-zinc-400 gap-4">
+                    <div class="w-10 h-10 rounded-full border-t-2 border-l-2 border-sky-500 animate-spin"></div>
+                    <p class="text-sm font-mono animate-pulse">Querying weather APIs & Gemini Kernel...</p>
+                </div>
+            `;
+
+            try {
+                const req = await fetch('/api/snow-prediction');
+                const predictions = await req.json();
+
+                if (predictions.error) {
+                    snowContent.innerHTML = `<div class="text-red-400 p-4 border border-red-500/20 bg-red-500/10 rounded-lg text-sm text-center">${escapeHTML(predictions.error)}</div>`;
+                    return;
+                }
+
+                // Render Calendar/Predictor grid
+                let html = '<div class="space-y-4 pb-4">';
+                predictions.forEach(p => {
+                    const probClass = p.probability >= 50 ? 'text-sky-400 font-bold drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]' : p.probability >= 25 ? 'text-zinc-200' : 'text-zinc-500';
+                    const bgClass = p.probability >= 50 ? 'bg-sky-500/10 border-sky-500/40 shadow-lg' : 'bg-zinc-800/60 border-zinc-700/50';
+
+                    html += `
+                        <div class="p-4 ${bgClass} border rounded-lg transition-all hover:bg-zinc-800/80">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-zinc-100 uppercase tracking-widest text-sm">${escapeHTML(p.date)}</h3>
+                                <div class="text-xl ${probClass}">${p.probability}% <span class="text-[10px] text-zinc-500 tracking-normal uppercase ml-1">Chance</span></div>
+                            </div>
+                            <div class="text-sm text-zinc-400 leading-relaxed">${escapeHTML(p.reason)}</div>
+                            <div class="w-full bg-zinc-900 rounded-full h-1.5 mt-4 overflow-hidden border border-zinc-900">
+                                <div class="${p.probability >= 50 ? 'bg-sky-400' : 'bg-zinc-600'} h-1.5 rounded-full" style="width: ${p.probability}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                snowContent.innerHTML = html;
+
+            } catch (e) {
+                snowContent.innerHTML = `<div class="text-red-400 p-4 text-center text-sm border border-red-500/20 bg-red-400/10 rounded-lg">Failed to establish datalink with Syracuse API endpoints.</div>`;
+            }
+        });
+    }
+
+    if (closeSnowBtn) {
+        closeSnowBtn.addEventListener('click', () => {
+            snowModal.classList.add('opacity-0');
+            setTimeout(() => snowModal.classList.add('hidden'), 300);
         });
     }
 

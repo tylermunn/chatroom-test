@@ -17,6 +17,58 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// API endpoint for AI Snow Day Predictor
+app.get('/api/snow-prediction', async (req, res) => {
+    try {
+        // Fetch 7-day weather forecast for Syracuse, NY
+        const weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=43.0481&longitude=-76.1474&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,windspeed_10m_max&timezone=America%2FNew_York';
+        const weatherResponse = await fetch(weatherUrl);
+        const weatherData = await weatherResponse.json();
+
+        // Pass to Gemini
+        const ai = getGeminiClient();
+        if (!ai) {
+            return res.status(500).json({ error: 'AI Kernel offline. Please configure API key.' });
+        }
+
+        const prompt = `
+You are a highly analytical AI meteorologist assistant for Syracuse Latin School. 
+I am going to give you raw weather data for the next 7 days from the Open-Meteo API for Syracuse, NY.
+Analyze the expected snowfall, precipitation, temperatures, and wind speeds.
+Calculate the "Snow Day Probability" (a percentage from 0% to 100%) for each day.
+Only output a rigid JSON array containing objects with the following keys:
+- "date": (string) The date, e.g. "Mon, Mar 2"
+- "probability": (number) The probability percentage
+- "reason": (string) 1 short sentence heavily summarizing the weather and why it will or won't cause a snow day. Keep it very punchy and analytical.
+
+Here is the raw data:
+${JSON.stringify(weatherData.daily)}
+
+Return ONLY JSON. Do not return markdown wrapping or backticks.
+`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                temperature: 0.1, // Keep it highly analytical
+            }
+        });
+
+        let outputText = response.text().trim();
+        if (outputText.startsWith('\`\`\`json')) {
+            outputText = outputText.replace(/^\`\`\`json\n/, '').replace(/\n\`\`\`$/, '');
+        }
+
+        // Send back parsed array
+        res.json(JSON.parse(outputText));
+
+    } catch (e) {
+        console.error("Snow Predictor Error: ", e);
+        res.status(500).json({ error: 'Data correlation failed.' });
+    }
+});
+
 // Store active users: socket.id -> username
 const activeUsers = new Map();
 
