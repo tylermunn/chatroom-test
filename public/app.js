@@ -133,6 +133,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup Socket Listeners
     function setupSocketListeners() {
+        if (!socket) return;
+
+        // Prevent duplicate listeners
+        socket.off('chat_history');
+        socket.off('chat_message');
+        socket.off('system_message');
+        socket.off('admin_announcement');
+        socket.off('update_roster');
+        socket.off('admin_auth_success');
+        socket.off('admin_auth_fail');
+        socket.off('delete_message');
+        socket.off('purge_all_messages');
+        socket.off('kicked_out');
+
         // Handle chat history
         socket.on('chat_history', (history) => {
             history.forEach(msg => {
@@ -211,19 +225,29 @@ document.addEventListener('DOMContentLoaded', () => {
         msgWrapper.id = `msg-${msg.msgId}`;
         msgWrapper.className = `group flex gap-4 w-full ${isMe ? 'flex-row-reverse text-right' : ''}`;
 
+        // Determine Name Colors based on roles
+        let nameColorStr = 'text-zinc-300';
+        let badgeHTML = '';
+        if (msg.isAdmin) {
+            nameColorStr = 'text-yellow-500';
+            badgeHTML = `<svg class="w-4 h-4 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+        } else if (msg.isBot) {
+            nameColorStr = 'text-indigo-400';
+        }
+
         const innerHTML = `
-                <div class="w-10 h-10 shrink-0 rounded-full font-bold flex items-center justify-center text-sm shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-lg' : 'bg-zinc-800 text-zinc-300'} mt-1 relative">
+                <div class="w-10 h-10 shrink-0 rounded-full font-bold flex items-center justify-center text-sm shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-lg' : 'bg-zinc-800 text-zinc-300'} mt-1 relative">
                     ${msg.isBot ? `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
                 </div>
                 <div class="flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}">
                     <div class="flex items-baseline gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                        <span class="font-bold text-[14px] tracking-wide uppercase ${msg.isAdmin ? 'text-amber-400' : msg.isBot ? 'text-indigo-400' : 'text-zinc-300'} flex items-center gap-1.5">
+                        <span class="font-bold text-[14px] tracking-wide uppercase ${nameColorStr} flex items-center gap-1.5">
                             ${escapeHTML(msg.username)} 
-                            ${msg.isAdmin ? `<svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
+                            ${badgeHTML}
                         </span>
                         <span class="text-[11px] font-mono text-zinc-600">${timeString}</span>
                     </div>
-                    <div class="text-[14.5px] leading-relaxed max-w-[85%] text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-4 py-2.5 text-white rounded-tr-sm shadow-md' : msg.isBot ? 'bg-indigo-500/5 px-4 py-3 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-lg' : 'bg-zinc-800/80 border border-zinc-700/50 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md'} font-medium">
+                    <div class="text-[14.5px] leading-relaxed max-w-[85%] text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-4 py-2.5 text-white rounded-tr-sm shadow-md' : msg.isAdmin ? 'bg-zinc-800/90 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md border-l-4 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-4 py-3 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-lg' : 'bg-zinc-800/80 border border-zinc-700/50 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md'} font-medium">
                         ${escapeHTML(msg.text)}
                     </div>
                     
@@ -286,18 +310,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const initial = user.isBot ? '✨' : user.username.substring(0, 2).toUpperCase();
             const statusText = user.isBot ? 'Listening - AI Kernel' : 'Established - Online';
 
+            let nameColorStr = 'text-zinc-200';
+            let badgeHTML = '';
+            let avatarClass = 'bg-zinc-800 border border-zinc-700 text-zinc-300';
+            if (user.isAdmin) {
+                nameColorStr = 'text-yellow-500';
+                badgeHTML = `<svg class="w-4 h-4 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+                avatarClass = 'bg-yellow-500 text-zinc-900 border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]';
+            } else if (user.isBot) {
+                nameColorStr = 'text-indigo-400';
+                avatarClass = 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30';
+            } else if (isMe) {
+                avatarClass = 'bg-indigo-600 text-white border-2 border-indigo-500';
+            }
+
             li.innerHTML = `
                     <div class="flex items-center gap-3">
                         <div class="relative">
-                            <div class="w-10 h-10 rounded-full ${isMe ? 'bg-indigo-600 text-white border-2 border-indigo-500' : user.isBot ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30' : 'bg-zinc-800 border border-zinc-700 text-zinc-300'} flex items-center justify-center font-bold text-sm shadow-md">
+                            <div class="w-10 h-10 rounded-full ${avatarClass} flex items-center justify-center font-bold text-sm shadow-md">
                                 ${user.isBot ? `<svg class="w-6 h-6 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
                             </div>
                             <div class="absolute bottom-0 right-0 w-3 h-3 ${user.isBot ? 'bg-indigo-500' : 'bg-emerald-500'} border-2 border-[#18181b] rounded-full"></div>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-[14px] font-bold uppercase tracking-wide ${user.isBot ? 'text-indigo-400' : user.isAdmin ? 'text-amber-400' : 'text-zinc-200'} group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <span class="text-[14px] font-bold uppercase tracking-wide ${nameColorStr} group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
                                 ${escapeHTML(user.username)} ${isMe ? '<span class="text-zinc-500 font-normal">*(Me)*</span>' : ''}
-                                ${user.isAdmin ? `<svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>` : ''}
+                                ${badgeHTML}
                             </span>
                             <span class="text-[11px] font-mono text-zinc-500">${statusText}</span>
                         </div>
