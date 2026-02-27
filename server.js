@@ -28,17 +28,17 @@ const ADMIN_PIN = '0620';
 const adminUsers = new Set(); // store socket.ids of admins
 const adminAttempts = new Map(); // tracking failed attempts for kicks
 
-// Initialize Gemini (Requires GEMINI_API_KEY environment variable on Render!)
-let ai = null;
-if (process.env.GEMINI_API_KEY) {
-    try {
-        ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        console.log("Gemini AI Initialized successfully.");
-    } catch (e) {
-        console.error("Gemini AI failed to initialize:", e);
+// Initialize Gemini
+function getGeminiClient() {
+    if (process.env.GEMINI_API_KEY) {
+        try {
+            return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        } catch (e) {
+            console.error("Gemini AI failed to initialize:", e);
+            return null;
+        }
     }
-} else {
-    console.log("No GEMINI_API_KEY found. @gemini commands will not work.");
+    return null;
 }
 
 io.on('connection', (socket) => {
@@ -61,7 +61,8 @@ io.on('connection', (socket) => {
 
         // Send updated user list to everyone
         const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
-        if (ai) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
+        if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
+        io.emit('update_roster', roster);
         io.emit('update_roster', roster);
 
         // Send chat history to the newly joined user
@@ -87,13 +88,14 @@ io.on('connection', (socket) => {
             if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 
             // Check for Gemini Mention
-            if (msgData.text.toLowerCase().includes('@gemini') && ai) {
+            const aiClient = getGeminiClient();
+            if (msgData.text.toLowerCase().includes('@gemini') && aiClient) {
                 const promptText = msgData.text.replace(/@gemini/ig, '').trim() || "Say hello!";
 
                 (async () => {
                     try {
                         const systemPrompt = "You are Gemini, an AI participating in a student chatroom that is disguised as a school library index. Keep your answers helpful, concise, and strictly school appropriate. Do not use profanity, violence, or inappropriate topics.";
-                        const response = await ai.models.generateContent({
+                        const response = await aiClient.models.generateContent({
                             model: 'gemini-2.5-flash',
                             contents: promptText,
                             config: {
@@ -183,7 +185,7 @@ io.on('connection', (socket) => {
 
             // Broadcast the updated roster so everyone sees the crown
             const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
-            if (ai) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
+            if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
             io.emit('update_roster', roster);
         } else {
             let attempts = (adminAttempts.get(socket.id) || 0) + 1;
@@ -267,7 +269,7 @@ io.on('connection', (socket) => {
 
             // Send updated user list to everyone
             const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
-            if (ai) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
+            if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
             io.emit('update_roster', roster);
         }
         console.log('User disconnected:', socket.id);
