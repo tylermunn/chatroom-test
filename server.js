@@ -36,7 +36,8 @@ io.on('connection', (socket) => {
         if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 
         // Send updated user list to everyone
-        io.emit('update_roster', Array.from(activeUsers.values()));
+        const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name }));
+        io.emit('update_roster', roster);
 
         // Send chat history to the newly joined user
         socket.emit('chat_history', messageHistory);
@@ -46,16 +47,56 @@ io.on('connection', (socket) => {
         const username = activeUsers.get(socket.id);
         if (username) {
             const chatMsg = {
+                msgId: Math.random().toString(36).substring(2, 11),
                 username: username,
                 text: msgData.text,
                 timestamp: new Date().toISOString(),
-                id: socket.id // useful to style own messages differently
+                id: socket.id, // useful to style own messages differently
+                reactions: {} // format: { emoji: count }
             };
             io.emit('chat_message', chatMsg);
 
             // Add to history
             messageHistory.push({ type: 'chat', data: chatMsg });
             if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+        }
+    });
+
+    socket.on('message_reaction', (data) => {
+        const { msgId, reaction } = data;
+        const username = activeUsers.get(socket.id);
+        if (username) {
+            // Find message in history
+            const msgObj = messageHistory.find(m => m.type === 'chat' && m.data.msgId === msgId);
+            if (msgObj) {
+                if (!msgObj.data.reactions) msgObj.data.reactions = {};
+                msgObj.data.reactions[reaction] = (msgObj.data.reactions[reaction] || 0) + 1;
+            }
+            // Broadcast reaction
+            io.emit('message_reaction', { msgId, reaction, username });
+        }
+    });
+
+    socket.on('private_message', (data) => {
+        const { targetId, text } = data;
+        const senderName = activeUsers.get(socket.id);
+        if (senderName) {
+            // Send to target
+            io.to(targetId).emit('private_message', {
+                senderId: socket.id,
+                senderName: senderName,
+                text: text,
+                timestamp: new Date().toISOString()
+            });
+            // Send back to sender so they can see it too
+            socket.emit('private_message', {
+                senderId: socket.id,
+                senderName: senderName,
+                text: text,
+                timestamp: new Date().toISOString(),
+                isEcho: true,
+                targetId: targetId
+            });
         }
     });
 
@@ -77,7 +118,8 @@ io.on('connection', (socket) => {
             activeUsers.delete(socket.id);
 
             // Send updated user list to everyone
-            io.emit('update_roster', Array.from(activeUsers.values()));
+            const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name }));
+            io.emit('update_roster', roster);
         }
         console.log('User disconnected:', socket.id);
     });

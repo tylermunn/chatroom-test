@@ -11,17 +11,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeUsersList = document.getElementById('active-users-list');
     const activeCount = document.getElementById('active-count');
-    const mobileActiveCount = document.getElementById('mobile-active-count');
+    const navCount = document.getElementById('nav-count');
 
-    const mobileRosterBtn = document.getElementById('mobile-roster-btn');
-    const closeRosterBtn = document.getElementById('close-roster-btn');
-    const rosterSidebar = document.getElementById('roster-sidebar');
-    const rosterBackdrop = document.getElementById('roster-backdrop');
+    const currentDatetime = document.getElementById('current-datetime');
+    const myAvatar = document.getElementById('my-avatar');
+
+    const dmContainer = document.getElementById('dm-container');
+
+    // Audio for notification
+    const popSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
+    popSound.volume = 0.5;
 
     // State
     let socket = null;
     let myUsername = '';
     let mySessionId = '';
+    let isWindowActive = true;
+    let unreadCount = 0;
+
+    // Track open DMs: targetId -> DOM Element
+    const openDMs = new Map();
+
+    // Setup Date/Time Header
+    function updateTime() {
+        const now = new Date();
+        currentDatetime.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) +
+            ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+
+    // Track Window Focus
+    window.addEventListener('focus', () => {
+        isWindowActive = true;
+        unreadCount = 0;
+        updateTitle();
+    });
+    window.addEventListener('blur', () => {
+        isWindowActive = false;
+    });
+
+    function updateTitle() {
+        if (unreadCount > 0) {
+            document.title = `(${unreadCount}) Mail - Outlook`;
+            document.getElementById('unread-badge').classList.remove('hidden');
+        } else {
+            document.title = 'Mail - Outlook';
+            document.getElementById('unread-badge').classList.add('hidden');
+        }
+    }
 
     // Join Chat Event
     joinForm.addEventListener('submit', (e) => {
@@ -30,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (username) {
             myUsername = username;
 
+            // Set Avatar Initials
+            myAvatar.textContent = username.substring(0, 2).toUpperCase();
+
             // Initialize Socket Connection
             socket = io();
 
@@ -37,14 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 mySessionId = socket.id;
                 socket.emit('join_chat', myUsername);
 
-                // Hide modal, show app with transition
+                // Hide modal, show app
                 entryModal.classList.add('opacity-0');
                 setTimeout(() => {
                     entryModal.classList.add('hidden');
                     entryModal.classList.remove('flex');
-
                     mainApp.classList.remove('hidden');
-                    // Add a tiny delay before toggling opacity to trigger transition
                     setTimeout(() => {
                         mainApp.classList.remove('opacity-0');
                         messageInput.focus();
@@ -56,18 +95,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Chat Form Submit
+    // Chat Form Submit (Global Inbox)
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const text = messageInput.value.trim();
         if (text && socket) {
             socket.emit('chat_message', { text });
             messageInput.value = '';
-
-            // Keep focus after sending for desktop
-            if (window.innerWidth > 768) {
-                messageInput.focus();
-            }
+            messageInput.focus();
         }
     });
 
@@ -78,23 +113,30 @@ document.addEventListener('DOMContentLoaded', () => {
             history.forEach(msg => {
                 if (msg.type === 'chat') {
                     const isMe = msg.data.id === mySessionId;
-                    appendMessage(msg.data.username, msg.data.text, msg.data.timestamp, isMe);
+                    renderMessage(msg.data, isMe);
                 } else if (msg.type === 'system') {
-                    // Only append system messages with history if you want, 
-                    // optional: maybe skip "XYZ joined the chat" for past users to reduce spam?
-                    // But we'll include it for complete context
                     appendSystemMessage(msg.data.text);
                 }
             });
+            scrollToBottom();
         });
 
         // Handle incoming chat messages
         socket.on('chat_message', (msg) => {
             const isMe = msg.id === mySessionId;
-            appendMessage(msg.username, msg.text, msg.timestamp, isMe);
+            renderMessage(msg, isMe);
+            scrollToBottom();
+
+            if (!isMe) {
+                if (!isWindowActive) {
+                    unreadCount++;
+                    updateTitle();
+                }
+                popSound.play().catch(e => console.log("Audio play prevented", e));
+            }
         });
 
-        // Handle system messages (join/leave)
+        // Handle system messages
         socket.on('system_message', (msg) => {
             appendSystemMessage(msg.text);
         });
@@ -103,41 +145,161 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('update_roster', (users) => {
             updateActiveUsers(users);
         });
+
+        // Handle Reactions
+        socket.on('message_reaction', (data) => {
+            const { msgId, reaction, username } = data;
+            const reactContainer = document.getElementById(`reactions-${msgId}`);
+            if (reactContainer) {
+                // simple visual update, just append or increment
+                let exists = reactContainer.querySelector(`[data-emoji="${reaction}"]`);
+                if (exists) {
+                    let countSpan = exists.querySelector('.count');
+                    countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                } else {
+                    reactContainer.innerHTML += `<span class="inline-flex items-center gap-1 bg-[#edebe9] text-xs px-1.5 py-0.5 rounded cursor-help" data-emoji="${reaction}" title="${username} reacted">
+                        ${reaction} <span class="count text-[#605e5c]">1</span>
+                    </span>`;
+                }
+            }
+        });
+
+        // Handle Private Messages
+        socket.on('private_message', (msg) => {
+            const companionId = msg.isEcho ? msg.targetId : msg.senderId;
+            const companionName = msg.isEcho ? "To: User" : msg.senderName; // simplified 
+
+            openDMWindow(companionId, companionName);
+            appendDM(companionId, msg);
+
+            if (!msg.isEcho && !isWindowActive) {
+                popSound.play().catch(e => { });
+                unreadCount++;
+                updateTitle();
+            }
+        });
     }
 
-    // UI Helpers
-    function appendMessage(username, text, timestamp, isMe) {
-        const timeString = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Open DM Window
+    function openDMWindow(targetId, targetName) {
+        if (openDMs.has(targetId)) return; // already open
+
+        const dmHTML = document.createElement('div');
+        dmHTML.className = 'dm-window w-[280px] h-[350px] bg-white flex flex-col rounded-t-lg overflow-hidden pointer-events-auto shadow-xl';
+        dmHTML.innerHTML = `
+            <div class="outlook-blue text-white px-3 py-2 flex justify-between items-center shrink-0 cursor-pointer">
+                <span class="font-medium text-sm truncate pr-2 w-48">${escapeHTML(targetName)}</span>
+                <button class="hover:bg-black/20 rounded p-0.5 dm-close">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#f3f2f1] text-sm dm-messages"></div>
+            <form class="dm-form border-t border-[#edebe9] p-2 bg-white flex gap-2">
+                <input type="text" class="dm-input flex-1 px-2 mb-1 outline-none text-sm placeholder-[#a19f9d]" placeholder="Type a message...">
+                <button type="submit" class="text-[#0f6cbd] p-1"><svg class="w-4 h-4 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg></button>
+            </form>
+        `;
+
+        // Bind events
+        const closeBtn = dmHTML.querySelector('.dm-close');
+        closeBtn.onclick = () => {
+            dmHTML.remove();
+            openDMs.delete(targetId);
+        };
+
+        const form = dmHTML.querySelector('.dm-form');
+        const input = dmHTML.querySelector('.dm-input');
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (text && socket) {
+                socket.emit('private_message', { targetId, text });
+                input.value = '';
+            }
+        };
+
+        dmContainer.appendChild(dmHTML);
+        openDMs.set(targetId, { element: dmHTML, messagesContainer: dmHTML.querySelector('.dm-messages') });
+    }
+
+    function appendDM(targetId, msg) {
+        const dmData = openDMs.get(targetId);
+        if (!dmData) return;
+
+        const isMe = msg.isEcho;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+        msgDiv.innerHTML = `
+            <div class="max-w-[85%] ${isMe ? 'bg-[#d1e8ff] text-[#242424]' : 'bg-white text-[#242424] border border-[#edebe9]'} rounded px-3 py-1.5 shadow-sm">
+                ${escapeHTML(msg.text)}
+            </div>
+        `;
+        dmData.messagesContainer.appendChild(msgDiv);
+        dmData.messagesContainer.scrollTop = dmData.messagesContainer.scrollHeight;
+    }
+
+
+    // Global UI Helpers
+    function renderMessage(msg, isMe) {
+        const timeString = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const initial = msg.username.substring(0, 2).toUpperCase();
 
         const msgWrapper = document.createElement('div');
-        msgWrapper.className = `flex w-full ${isMe ? 'justify-end' : 'justify-start'}`;
+        msgWrapper.className = `group flex gap-3 w-full border-b border-[#f3f2f1] pb-4 ${isMe ? 'flex-row-reverse text-right' : ''}`;
 
-        const innerHTML = isMe ? `
-            <div class="max-w-[85%] sm:max-w-[75%] flex flex-col items-end">
-                <span class="text-[10px] text-slate-400 mb-1 px-1 font-medium select-none uppercase tracking-wider">You • ${timeString}</span>
-                <div class="bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 sm:px-5 sm:py-3 shadow-sm break-words w-full text-sm sm:text-base leading-relaxed border border-blue-600">
-                    ${escapeHTML(text)}
-                </div>
+        // Render existing reactions
+        let rxHTML = '';
+        if (msg.reactions) {
+            for (const [emoji, count] of Object.entries(msg.reactions)) {
+                rxHTML += `<span class="inline-flex items-center gap-1 bg-[#edebe9] text-xs px-1.5 py-0.5 rounded cursor-help" data-emoji="${emoji}">
+                    ${emoji} <span class="count text-[#605e5c]">${count}</span>
+                </span>`;
+            }
+        }
+
+        const innerHTML = `
+            <div class="w-10 h-10 shrink-0 rounded-full font-semibold flex items-center justify-center text-sm shadow-sm ${isMe ? 'bg-[#0f6cbd] text-white' : 'bg-[#d1e8ff] text-[#0f6cbd]'} mt-1">
+                ${initial}
             </div>
-        ` : `
-            <div class="max-w-[85%] sm:max-w-[75%] flex flex-col items-start">
-                <span class="text-[10px] text-slate-400 mb-1 px-1 font-medium select-none uppercase tracking-wider">${escapeHTML(username)} • ${timeString}</span>
-                <div class="bg-white border border-slate-200/60 text-slate-700 rounded-2xl rounded-tl-sm px-4 py-2.5 sm:px-5 sm:py-3 shadow-sm break-words w-full text-sm sm:text-base leading-relaxed">
-                    ${escapeHTML(text)}
+            <div class="flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
+                    <span class="font-semibold text-[15px] text-[#242424]">${escapeHTML(msg.username)}</span>
+                    <span class="text-xs text-[#605e5c]">${timeString}</span>
+                </div>
+                <div class="text-[15px] text-[#242424] leading-relaxed max-w-[90%] text-left whitespace-pre-wrap ${isMe ? 'bg-[#f3f2f1] px-3 py-2 rounded-lg inline-block' : ''}">
+                    ${escapeHTML(msg.text)}
+                </div>
+                
+                <!-- Reaction Display / Action Bay -->
+                <div class="mt-2 flex gap-2 items-center ${isMe ? 'flex-row-reverse' : ''}">
+                    <div id="reactions-${msg.msgId}" class="flex gap-1 flex-wrap">${rxHTML}</div>
+                    
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 ${isMe ? 'mr-2' : 'ml-2'}">
+                        <button onclick="reactToMessage('${msg.msgId}', '👍')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">👍</button>
+                        <button onclick="reactToMessage('${msg.msgId}', '😂')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">😂</button>
+                        <button onclick="reactToMessage('${msg.msgId}', '❤️')" class="text-lg hover:bg-[#edebe9] rounded px-1 transition-colors">❤️</button>
+                    </div>
                 </div>
             </div>
         `;
 
         msgWrapper.innerHTML = innerHTML;
         messagesContainer.appendChild(msgWrapper);
-        scrollToBottom();
+    }
+
+    // Expose reaction func globally
+    window.reactToMessage = function (msgId, reaction) {
+        if (socket) {
+            socket.emit('message_reaction', { msgId, reaction });
+        }
     }
 
     function appendSystemMessage(text) {
         const msgWrapper = document.createElement('div');
-        msgWrapper.className = 'flex justify-center my-4';
+        msgWrapper.className = 'flex justify-center my-2';
         msgWrapper.innerHTML = `
-            <div class="bg-slate-100 text-slate-500 border border-slate-200 rounded-full px-5 py-1.5 text-xs font-medium select-none shadow-sm">
+            <div class="text-[#605e5c] text-xs font-medium border-t border-b border-[#edebe9] py-1 px-4 w-full text-center">
                 ${escapeHTML(text)}
             </div>
         `;
@@ -146,32 +308,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateActiveUsers(users) {
-        // Update counts
         activeCount.textContent = users.length;
-        mobileActiveCount.textContent = users.length;
+        navCount.textContent = users.length;
 
-        // Update list
         activeUsersList.innerHTML = '';
         users.forEach(user => {
-            const isMe = user === myUsername;
+            const isMe = user.id === mySessionId;
             const li = document.createElement('li');
-            li.className = 'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ' +
-                (isMe ? 'bg-blue-50/60 border border-blue-100/50' : 'hover:bg-slate-50 border border-transparent');
+            li.className = 'flex items-center justify-between px-4 py-3 hover:bg-[#f3f2f1] transition-colors cursor-pointer group ' + (isMe ? 'bg-[#f3f2f1]' : '');
 
-            // Simple avatar using first letter
-            const initial = user.charAt(0).toUpperCase();
+            const initial = user.username.substring(0, 2).toUpperCase();
 
             li.innerHTML = `
-                <div class="w-9 h-9 shrink-0 rounded-full ${isMe ? 'bg-gradient-to-tr from-blue-600 to-blue-500' : 'bg-slate-200'} flex items-center justify-center text-sm font-bold shadow-sm ${isMe ? 'text-white' : 'text-slate-600'}">
-                    ${initial}
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <div class="w-10 h-10 rounded-full ${isMe ? 'bg-[#0f6cbd] text-white' : 'bg-[#d1e8ff] text-[#0f6cbd]'} flex items-center justify-center font-semibold text-sm">
+                            ${initial}
+                        </div>
+                        <div class="absolute bottom-0 right-0 w-3 h-3 bg-[#7fba00] border-2 border-white rounded-full"></div>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[15px] font-medium text-[#242424] group-hover:text-[#0f6cbd] transition-colors">${escapeHTML(user.username)} ${isMe ? '(Me)' : ''}</span>
+                        <span class="text-xs text-[#605e5c]">Available - Online</span>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-medium text-sm truncate ${isMe ? 'text-blue-700' : 'text-slate-700'}">
-                        ${escapeHTML(user)} ${isMe ? '<span class="text-xs font-normal opacity-70">(You)</span>' : ''}
-                    </p>
-                </div>
-                <div class="w-2 h-2 shrink-0 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]"></div>
+                ${!isMe ? `
+                <button class="opacity-0 group-hover:opacity-100 bg-white border border-[#edebe9] px-2 py-1 rounded shadow-sm text-xs font-medium text-[#0f6cbd] hover:bg-[#0f6cbd] hover:text-white transition-all open-dm-btn">
+                    Message
+                </button>
+                ` : ''}
             `;
+
+            if (!isMe) {
+                // DM Click Event
+                li.querySelector('.open-dm-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openDMWindow(user.id, user.username);
+                });
+                li.addEventListener('click', () => {
+                    openDMWindow(user.id, user.username);
+                });
+            }
+
             activeUsersList.appendChild(li);
         });
     }
@@ -180,48 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // Utility: prevent XSS
     function escapeHTML(str) {
-        return str.replace(/[&<>'"]/g,
-            tag => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            }[tag] || tag)
-        );
+        return str.replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[tag] || tag));
     }
-
-    // Mobile Sidebar Toggle Logic
-    let isSidebarOpen = false;
-
-    function toggleMobileSidebar() {
-        if (!isSidebarOpen) {
-            // Open sidebar
-            isSidebarOpen = true;
-            rosterSidebar.classList.remove('hidden');
-            rosterBackdrop.classList.remove('hidden');
-
-            // Small delay to allow display:block to apply before animating transform
-            setTimeout(() => {
-                rosterSidebar.classList.remove('translate-x-full');
-                rosterBackdrop.classList.remove('opacity-0');
-            }, 10);
-        } else {
-            // Close sidebar
-            isSidebarOpen = false;
-            rosterSidebar.classList.add('translate-x-full');
-            rosterBackdrop.classList.add('opacity-0');
-
-            setTimeout(() => {
-                rosterSidebar.classList.add('hidden');
-                rosterBackdrop.classList.add('hidden');
-            }, 300); // Wait for transition duration
-        }
-    }
-
-    mobileRosterBtn.addEventListener('click', toggleMobileSidebar);
-    closeRosterBtn.addEventListener('click', toggleMobileSidebar);
-    rosterBackdrop.addEventListener('click', toggleMobileSidebar);
 });
