@@ -10,6 +10,11 @@ const io = new Server(server);
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Explicitly serve index.html for the root route just in case static routing misses it
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Store active users: socket.id -> username
 const activeUsers = new Map();
 
