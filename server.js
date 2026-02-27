@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
 const server = http.createServer(app);
@@ -26,6 +27,19 @@ const MAX_HISTORY = 100; // Store last 100 messages
 const ADMIN_PIN = '0620';
 const adminUsers = new Set(); // store socket.ids of admins
 const adminAttempts = new Map(); // tracking failed attempts for kicks
+
+// Initialize Gemini (Requires GEMINI_API_KEY environment variable on Render!)
+let ai = null;
+if (process.env.GEMINI_API_KEY) {
+    try {
+        ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        console.log("Gemini AI Initialized successfully.");
+    } catch (e) {
+        console.error("Gemini AI failed to initialize:", e);
+    }
+} else {
+    console.log("No GEMINI_API_KEY found. @gemini commands will not work.");
+}
 
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
@@ -70,6 +84,42 @@ io.on('connection', (socket) => {
             // Add to history
             messageHistory.push({ type: 'chat', data: chatMsg });
             if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+
+            // Check for Gemini Mention
+            if (msgData.text.toLowerCase().includes('@gemini') && ai) {
+                const promptText = msgData.text.replace(/@gemini/ig, '').trim() || "Say hello!";
+
+                (async () => {
+                    try {
+                        const systemPrompt = "You are Gemini, an AI participating in a student chatroom that is disguised as a school library index. Keep your answers helpful, concise, and strictly school appropriate. Do not use profanity, violence, or inappropriate topics.";
+                        const response = await ai.models.generateContent({
+                            model: 'gemini-2.5-flash',
+                            contents: promptText,
+                            config: {
+                                systemInstruction: systemPrompt
+                            }
+                        });
+
+                        const geminiText = response.text;
+                        const geminiMsg = {
+                            msgId: Math.random().toString(36).substring(2, 11),
+                            username: "Gemini",
+                            text: geminiText,
+                            timestamp: new Date().toISOString(),
+                            id: "gemini_bot",
+                            isAdmin: false,
+                            isBot: true,
+                            reactions: {}
+                        };
+                        io.emit('chat_message', geminiMsg);
+                        messageHistory.push({ type: 'chat', data: geminiMsg });
+                        if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+                    } catch (err) {
+                        console.error("Gemini Error:", err);
+                        // Optional: could send an error message from Gemini to chat, but silent failure is safer.
+                    }
+                })();
+            }
         }
     });
 
