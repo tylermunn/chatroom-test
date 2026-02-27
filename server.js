@@ -97,7 +97,9 @@ app.post('/api/register', async (req, res) => {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
 
-        db.get('SELECT id FROM users WHERE username = ?', [username], async (err, row) => {
+        const lowerUsername = username.toLowerCase();
+
+        db.get('SELECT id FROM users WHERE LOWER(username) = ?', [lowerUsername], async (err, row) => {
             if (row) return res.status(400).json({ error: 'Username exists' });
 
             const hash = await bcrypt.hash(password, 10);
@@ -114,7 +116,8 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', (req, res) => {
     try {
         const { username, password } = req.body;
-        db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
+        const lowerUsername = username.toLowerCase();
+        db.get('SELECT * FROM users WHERE LOWER(username) = ?', [lowerUsername], async (err, user) => {
             if (err) return res.status(500).json({ error: 'DB error' });
             if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -235,7 +238,6 @@ io.on('connection', (socket) => {
     socket.on('join_chat', () => {
         // User is already authenticated and checked via io.use
         const username = socket.user.username;
-        activeUsers.set(socket.id, username);
 
         // Notify everyone that someone joined
         const sysMsg = {
