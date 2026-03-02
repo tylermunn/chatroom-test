@@ -373,7 +373,7 @@ io.on('connection', (socket) => {
                             }
                         });
 
-                        const geminiText = response.text;
+                        const geminiText = `@${userObj.username} ` + response.text;
                         const geminiMsg = {
                             msgId: Math.random().toString(36).substring(2, 11),
                             username: "Gemini",
