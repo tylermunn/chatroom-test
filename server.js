@@ -7,6 +7,7 @@ const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -29,6 +30,15 @@ db.serialize(() => {
         reputation_score INTEGER DEFAULT 0,
         last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS suggestions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        type TEXT,
+        details TEXT,
+        status TEXT DEFAULT 'pending',
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
 });
 
 app.use(express.json());
@@ -49,43 +59,52 @@ app.post('/api/suggestions', (req, res) => {
             return res.status(400).json({ error: 'Incomplete transmission data.' });
         }
 
-        const suggestion = {
-            id: Math.random().toString(36).substring(2, 11),
-            name,
-            type,
-            details,
-            timestamp: new Date().toISOString(),
-            status: 'pending'
-        };
-
-        const filePath = path.join(__dirname, 'suggestions.json');
-
-        let suggestions = [];
-        if (fs.existsSync(filePath)) {
-            const rawData = fs.readFileSync(filePath, 'utf8');
-            try {
-                suggestions = JSON.parse(rawData);
-            } catch (err) {
-                suggestions = [];
+        db.run('INSERT INTO suggestions (name, type, details) VALUES (?, ?, ?)', [name, type, details], async function (err) {
+            if (err) {
+                console.error("Database error saving suggestion:", err);
+                return res.status(500).json({ error: 'System failure during database storage.' });
             }
-        }
 
-        suggestions.push(suggestion);
-        fs.writeFileSync(filePath, JSON.stringify(suggestions, null, 2));
+            // Alert chat
+            const typeLabel = type.toUpperCase();
+            const sysMsg = {
+                text: `[SUGGESTION] A new ${typeLabel} transmission has been submitted by ${name}.`,
+                timestamp: new Date().toISOString()
+            };
+            io.emit('system_message', sysMsg);
 
-        // Alert chat
-        const typeLabel = type.toUpperCase();
-        const sysMsg = {
-            text: `[SUGGESTION] A new ${typeLabel} transmission has been submitted by ${name}.`,
-            timestamp: new Date().toISOString()
-        };
-        io.emit('system_message', sysMsg);
+            // Add to chat history
+            messageHistory.push({ type: 'system', data: sysMsg });
+            if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 
-        // Add to chat history
-        messageHistory.push({ type: 'system', data: sysMsg });
-        if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+            // Send Email Notification if env vars exist
+            if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+                const transporter = nodemailer.createTransport({
+                    service: 'gmail', // Standard gmail setup
+                    auth: {
+                        user: process.env.EMAIL_USER,
+                        pass: process.env.EMAIL_PASS
+                    }
+                });
 
-        res.status(201).json({ success: true, id: suggestion.id });
+                const mailOptions = {
+                    from: process.env.EMAIL_USER,
+                    to: 'tyjmunn@gmail.com',
+                    subject: `New chatroom-test ${typeLabel} from ${name}`,
+                    text: `A new feature request/bug report was received on the site.\n\nSender Name: ${name}\nTransmission Type: ${typeLabel}\nDetails: ${details}\n\nTime: ${new Date().toLocaleString()}`
+                };
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                } catch (emailErr) {
+                    console.error("Failed to send email notification:", emailErr);
+                }
+            } else {
+                console.log("No EMAIL_USER/EMAIL_PASS provided. Skipping email send.");
+            }
+
+            res.status(201).json({ success: true, id: this.lastID });
+        });
     } catch (e) {
         console.error("Neural Link Error:", e);
         res.status(500).json({ error: 'System failure during transmission logging.' });
