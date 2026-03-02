@@ -118,14 +118,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Admin Actions
     if (adminTrigger) {
-        adminTrigger.addEventListener('click', () => {
+        adminTrigger.addEventListener('click', async () => {
             if (!isAdmin) {
                 const pin = prompt("Enter Settings PIN:");
                 if (pin) {
                     socket.emit('admin_auth', pin);
+                    // Also verify via HTTP for dashboard access
+                    try {
+                        const res = await fetch('/api/admin/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pin })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            sessionStorage.setItem('admin_token', data.adminToken);
+                        }
+                    } catch (e) { }
                 }
             } else {
-                alert("Already authenticated as Admin.");
+                if (confirm("Open Admin Dashboard?")) {
+                    window.location.href = '/admin.html';
+                }
             }
         });
     }

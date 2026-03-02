@@ -22,6 +22,12 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
     else console.log(`Database opened at: ${DB_PATH}`);
 });
 
+// Track server start time for uptime calc
+const SERVER_START_TIME = Date.now();
+
+// Track total messages sent (in-memory, persisted to DB)
+let totalMessagesSent = 0;
+
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +45,11 @@ db.serialize(() => {
         details TEXT,
         status TEXT DEFAULT 'pending',
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS message_counts (
+        username TEXT PRIMARY KEY,
+        count INTEGER DEFAULT 0
     )`);
 });
 
@@ -205,6 +216,78 @@ app.get('/api/users/status', (req, res) => {
         }));
 
         res.json(mappedRows);
+    });
+});
+
+// Admin PIN Verification endpoint (for non-socket pages)
+app.post('/api/admin/verify', (req, res) => {
+    const { pin } = req.body;
+    if (pin === ADMIN_PIN) {
+        const adminToken = jwt.sign({ isAdmin: true, timestamp: Date.now() }, JWT_SECRET, { expiresIn: '4h' });
+        res.json({ success: true, adminToken });
+    } else {
+        res.status(401).json({ error: 'Invalid PIN' });
+    }
+});
+
+// Admin auth middleware for dashboard routes
+function requireAdmin(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No admin token' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err || !decoded.isAdmin) return res.status(403).json({ error: 'Invalid admin token' });
+        next();
+    });
+}
+
+// Admin Dashboard Stats Endpoint
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
+    const uptimeMs = Date.now() - SERVER_START_TIME;
+    const activeUsersList = Array.from(activeUsers.values()).map(u => ({
+        username: u.username,
+        role: u.role,
+        isGuest: u.isGuest,
+        reputation: u.reputation
+    }));
+
+    // Get all users from DB
+    db.all('SELECT id, username, role, reputation_score, last_login FROM users ORDER BY last_login DESC', [], (err, users) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+
+        // Get message counts per user
+        db.all('SELECT username, count FROM message_counts ORDER BY count DESC', [], (err2, msgCounts) => {
+            if (err2) return res.status(500).json({ error: 'DB error' });
+
+            // Get suggestions count
+            db.get('SELECT COUNT(*) as count FROM suggestions', [], (err3, sugRow) => {
+                const suggestionsCount = sugRow ? sugRow.count : 0;
+
+                // Get active usernames set
+                const activeUsernames = new Set(activeUsersList.map(u => u.username));
+
+                const enrichedUsers = users.map(u => ({
+                    ...u,
+                    isActive: activeUsernames.has(u.username),
+                    messageCount: (msgCounts.find(m => m.username === u.username) || {}).count || 0
+                }));
+
+                res.json({
+                    uptime: uptimeMs,
+                    totalRegisteredUsers: users.length,
+                    totalActiveUsers: activeUsersList.length,
+                    totalMessagesSent,
+                    totalSuggestions: suggestionsCount,
+                    activeUsers: activeUsersList,
+                    users: enrichedUsers,
+                    messageCounts: msgCounts || [],
+                    memoryUsage: process.memoryUsage(),
+                    serverTime: new Date().toISOString()
+                });
+            });
+        });
     });
 });
 
@@ -429,6 +512,10 @@ io.on('connection', (socket) => {
                 downvoters: []
             };
             io.emit('chat_message', chatMsg);
+
+            // Track message count
+            totalMessagesSent++;
+            db.run('INSERT INTO message_counts (username, count) VALUES (?, 1) ON CONFLICT(username) DO UPDATE SET count = count + 1', [userObj.username]);
 
             // Add to history
             pushHistory('chat', chatMsg);
