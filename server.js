@@ -28,6 +28,9 @@ const SERVER_START_TIME = Date.now();
 // Track total messages sent (in-memory, persisted to DB)
 let totalMessagesSent = 0;
 
+// In-memory avatar cache for fast lookups
+const avatarCache = new Map();
+
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,6 +40,11 @@ db.serialize(() => {
         reputation_score INTEGER DEFAULT 0,
         last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+
+    // Add avatar column if it doesn't exist
+    db.run(`ALTER TABLE users ADD COLUMN avatar TEXT`, (err) => {
+        // Ignore error if column already exists
+    });
 
     db.run(`CREATE TABLE IF NOT EXISTS suggestions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,9 +59,17 @@ db.serialize(() => {
         username TEXT PRIMARY KEY,
         count INTEGER DEFAULT 0
     )`);
+
+    // Preload avatar cache
+    db.all('SELECT username, avatar FROM users WHERE avatar IS NOT NULL', [], (err, rows) => {
+        if (!err && rows) {
+            rows.forEach(r => avatarCache.set(r.username, r.avatar));
+            console.log(`Loaded ${rows.length} avatars into cache`);
+        }
+    });
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -201,6 +217,48 @@ app.post('/api/guest', (req, res) => {
     } catch (e) {
         res.status(500).json({ error: 'Server error parsing guest token' });
     }
+});
+
+// Avatar Upload endpoint
+app.post('/api/avatar', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err || !decoded || decoded.isGuest) return res.status(403).json({ error: 'Must be logged in to set avatar' });
+
+        const { avatar } = req.body;
+        if (!avatar) return res.status(400).json({ error: 'No avatar data' });
+
+        // Limit to ~150KB base64
+        if (avatar.length > 200000) {
+            return res.status(400).json({ error: 'Image too large. Max 150KB.' });
+        }
+
+        db.run('UPDATE users SET avatar = ? WHERE username = ?', [avatar, decoded.username], function (err) {
+            if (err) return res.status(500).json({ error: 'DB error' });
+            avatarCache.set(decoded.username, avatar);
+            // Broadcast roster update so everyone sees the new avatar
+            io.emit('update_roster', buildRoster());
+            res.json({ success: true });
+        });
+    });
+});
+
+// Avatar retrieve endpoint
+app.get('/api/avatar/:username', (req, res) => {
+    const username = req.params.username;
+    const cached = avatarCache.get(username);
+    if (cached) {
+        return res.json({ avatar: cached });
+    }
+    db.get('SELECT avatar FROM users WHERE username = ?', [username], (err, row) => {
+        if (err || !row || !row.avatar) return res.json({ avatar: null });
+        avatarCache.set(username, row.avatar);
+        res.json({ avatar: row.avatar });
+    });
 });
 
 app.get('/api/users/status', (req, res) => {
@@ -373,7 +431,14 @@ const adminAttempts = new Map(); // tracking failed attempts for kicks
 
 // Build user roster for broadcasting
 function buildRoster() {
-    const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation, isVerified: !u.isGuest }));
+    const roster = Array.from(activeUsers.values()).map(u => ({
+        id: u.id,
+        username: u.username,
+        isAdmin: u.role === 'mod' || adminUsers.has(u.id),
+        reputation: u.reputation,
+        isVerified: !u.isGuest,
+        avatar: avatarCache.get(u.username) || null
+    }));
     if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
     return roster;
 }
@@ -507,6 +572,7 @@ io.on('connection', (socket) => {
                 id: socket.id,
                 isAdmin: isMod,
                 isVerified: !userObj.isGuest,
+                avatar: avatarCache.get(userObj.username) || null,
                 score: 0,
                 upvoters: [],
                 downvoters: []
@@ -690,6 +756,21 @@ io.on('connection', (socket) => {
         }
     });
     // ----------------------
+
+    // Typing indicator events
+    socket.on('typing', () => {
+        const userObj = activeUsers.get(socket.id);
+        if (userObj) {
+            socket.broadcast.emit('user_typing', { username: userObj.username });
+        }
+    });
+
+    socket.on('stop_typing', () => {
+        const userObj = activeUsers.get(socket.id);
+        if (userObj) {
+            socket.broadcast.emit('user_stop_typing', { username: userObj.username });
+        }
+    });
 
     socket.on('disconnect', () => {
         const userObj = activeUsers.get(socket.id);

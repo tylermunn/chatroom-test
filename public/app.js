@@ -49,6 +49,111 @@ document.addEventListener('DOMContentLoaded', () => {
     let isWindowActive = true;
     let unreadCount = 0;
     let isAdmin = false;
+    let isGuest = false;
+    let myAvatarData = null; // base64 avatar
+
+    // Hidden file input for avatar upload
+    const avatarFileInput = document.createElement('input');
+    avatarFileInput.type = 'file';
+    avatarFileInput.accept = 'image/*';
+    avatarFileInput.style.display = 'none';
+    document.body.appendChild(avatarFileInput);
+
+    // Click avatar to upload (registered users only)
+    if (myAvatar) {
+        myAvatar.addEventListener('click', () => {
+            if (isGuest) {
+                alert('Guest users cannot set a profile picture. Register an account first!');
+                return;
+            }
+            if (!myUsername) return;
+            avatarFileInput.click();
+        });
+        myAvatar.title = 'Click to set profile picture';
+        myAvatar.style.cursor = 'pointer';
+    }
+
+    avatarFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const base64 = await resizeAndCompress(file, 100, 0.7);
+            const token = localStorage.getItem('chat_token');
+            const res = await fetch('/api/avatar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ avatar: base64 })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                myAvatarData = base64;
+                myAvatar.innerHTML = `<img src="${base64}" class="w-full h-full rounded-full object-cover" />`;
+            } else {
+                alert(data.error || 'Failed to upload avatar');
+            }
+        } catch (err) {
+            alert('Failed to process image');
+        }
+        avatarFileInput.value = '';
+    });
+
+    // Paste image from clipboard
+    document.addEventListener('paste', async (e) => {
+        if (isGuest || !myUsername) return;
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (!file) return;
+                if (!confirm('Set this image as your profile picture?')) return;
+                try {
+                    const base64 = await resizeAndCompress(file, 100, 0.7);
+                    const token = localStorage.getItem('chat_token');
+                    const res = await fetch('/api/avatar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ avatar: base64 })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        myAvatarData = base64;
+                        myAvatar.innerHTML = `<img src="${base64}" class="w-full h-full rounded-full object-cover" />`;
+                    } else {
+                        alert(data.error || 'Failed to upload avatar');
+                    }
+                } catch (err) {
+                    alert('Failed to process image');
+                }
+                break;
+            }
+        }
+    });
+
+    function resizeAndCompress(file, maxSize, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+                    else { w = Math.round(w * maxSize / h); h = maxSize; }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
 
     // Setup Date/Time Header and Current Weather
     function updateTime() {
@@ -356,6 +461,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function connectSocket(token) {
         myAvatar.textContent = myUsername.substring(0, 2).toUpperCase();
 
+        // Parse guest status from token
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            isGuest = !!payload.isGuest;
+        } catch (e) { }
+
+        // Load existing avatar for avatar bubble
+        if (!isGuest) {
+            fetch(`/api/avatar/${myUsername}`).then(r => r.json()).then(data => {
+                if (data.avatar) {
+                    myAvatarData = data.avatar;
+                    myAvatar.innerHTML = `<img src="${data.avatar}" class="w-full h-full rounded-full object-cover" />`;
+                }
+            }).catch(() => { });
+        }
+
         if (!socket) {
             socket = io({
                 auth: { token }
@@ -413,10 +534,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = messageInput.value.trim();
         if (text && socket) {
             socket.emit('chat_message', { text });
+            socket.emit('stop_typing');
             messageInput.value = '';
+            messageInput.style.height = 'auto';
+            if (charCount) charCount.textContent = '';
             messageInput.focus();
         }
     });
+
+    // Auto-grow textarea + Enter/Shift+Enter handling
+    const charCount = document.getElementById('char-count');
+    if (messageInput) {
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        messageInput.addEventListener('input', () => {
+            // Auto-grow
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+            if (messageInput.scrollHeight > 120) {
+                messageInput.style.overflowY = 'auto';
+            } else {
+                messageInput.style.overflowY = 'hidden';
+            }
+            // Character count
+            const len = messageInput.value.length;
+            if (charCount) {
+                charCount.textContent = len > 0 ? `${len}` : '';
+            }
+            // Typing indicator
+            if (socket && messageInput.value.trim().length > 0) {
+                socket.emit('typing');
+            } else if (socket) {
+                socket.emit('stop_typing');
+            }
+        });
+    }
 
     // Setup Socket Listeners
     function setupSocketListeners() {
@@ -520,6 +677,40 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("You have been kicked by an administrator.");
             window.location.reload();
         });
+
+        // Typing indicator
+        const typingIndicator = document.getElementById('typing-indicator');
+        const typingText = document.getElementById('typing-text');
+        const typingUsers = new Set();
+        let typingTimeout = null;
+
+        socket.on('user_typing', (data) => {
+            if (data.username === myUsername) return;
+            typingUsers.add(data.username);
+            updateTypingUI();
+        });
+
+        socket.on('user_stop_typing', (data) => {
+            typingUsers.delete(data.username);
+            updateTypingUI();
+        });
+
+        function updateTypingUI() {
+            if (!typingIndicator || !typingText) return;
+            if (typingUsers.size === 0) {
+                typingIndicator.classList.add('hidden');
+            } else {
+                typingIndicator.classList.remove('hidden');
+                const names = Array.from(typingUsers);
+                if (names.length === 1) {
+                    typingText.textContent = `${names[0]} is typing...`;
+                } else if (names.length === 2) {
+                    typingText.textContent = `${names[0]} and ${names[1]} are typing...`;
+                } else {
+                    typingText.textContent = `${names.length} people are typing...`;
+                }
+            }
+        }
     }
 
     // Global UI Helpers
@@ -529,43 +720,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const msgWrapper = document.createElement('div');
         msgWrapper.id = `msg-${msg.msgId}`;
-        msgWrapper.className = `group flex gap-4 w-full ${isMe ? 'flex-row-reverse text-right' : ''}`;
+        msgWrapper.className = `group flex gap-3 w-full msg-enter ${isMe ? 'flex-row-reverse text-right' : ''}`;
 
         // Determine Name Colors based on roles
         let nameColorStr = 'text-zinc-300';
         let badgeHTML = '';
         if (msg.isAdmin) {
             nameColorStr = 'text-yellow-500';
-            badgeHTML = `<svg class="w-4 h-4 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+            badgeHTML = `<svg class="w-3.5 h-3.5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
         } else if (msg.isBot) {
             nameColorStr = 'text-indigo-400';
         } else if (msg.isVerified) {
-            badgeHTML = `<svg class="w-4 h-4 text-sky-500" viewBox="0 0 22 22" fill="currentColor"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.855-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.607-.274 1.264-.144 1.897.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681.132-.637.075-1.299-.165-1.903.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>`;
+            badgeHTML = `<svg class="w-3.5 h-3.5 text-sky-500" viewBox="0 0 22 22" fill="currentColor"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.855-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.607-.274 1.264-.144 1.897.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681.132-.637.075-1.299-.165-1.903.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>`;
         }
 
+        const avatarContent = msg.avatar
+            ? `<img src="${msg.avatar}" class="w-full h-full rounded-full object-cover" />`
+            : (msg.isBot ? `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial);
+
         const innerHTML = `
-                <div class="w-10 h-10 shrink-0 rounded-full font-bold flex items-center justify-center text-sm shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-lg' : 'bg-zinc-800 text-zinc-300'} mt-1 relative">
-                    ${msg.isBot ? `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
+                <div class="w-8 h-8 shrink-0 rounded-full font-bold flex items-center justify-center text-xs shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-base' : 'bg-zinc-800 text-zinc-300'} mt-0.5 relative overflow-hidden">
+                    ${avatarContent}
                 </div>
                 <div class="flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}">
-                    <div class="flex items-baseline gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : ''}">
-                        <span class="font-bold text-[14px] tracking-wide uppercase ${nameColorStr} flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 mb-0.5 ${isMe ? 'flex-row-reverse' : ''}">
+                        <span class="font-semibold text-[12px] tracking-wide uppercase ${nameColorStr} flex items-center gap-1">
                             ${escapeHTML(msg.username)} 
                             ${badgeHTML}
                         </span>
-                        <span class="text-[11px] font-mono text-zinc-600">${timeString}</span>
-                        ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[10px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-500'}">REP: ${msg.score}</span>` : ''}
+                        <span class="text-[10px] font-mono text-zinc-600">${timeString}</span>
+                        ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[9px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-600'}">REP: ${msg.score}</span>` : ''}
                     </div>
-                    <div class="text-[14.5px] leading-relaxed max-w-[85%] text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-4 py-2.5 text-white rounded-tr-sm shadow-md' : msg.isAdmin ? 'bg-zinc-800/90 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md border-l-4 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-4 py-3 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-lg' : 'bg-zinc-800/80 border border-zinc-700/50 px-4 py-2.5 text-zinc-100 rounded-tl-sm shadow-md'} font-medium">
+                    <div class="inline-block text-[13.5px] leading-snug text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-3.5 py-2 text-white rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-3.5 py-2 text-zinc-100 rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-3.5 py-2.5 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-sm max-w-[90%]' : 'bg-zinc-800/70 border border-zinc-700/40 px-3.5 py-2 text-zinc-100 rounded-tl-sm shadow-sm'} font-normal" style="max-width: min(85%, 520px); word-break: break-word;">
                         ${escapeHTML(msg.text)}
                     </div>
                     
-                    <div class="mt-1 flex gap-2 items-center h-6 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
+                    <div class="mt-0.5 flex gap-1.5 items-center h-5 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
                         ${!isMe && !msg.isBot ? `
-                        <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[11px] uppercase tracking-wider font-bold text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 px-2 py-0.5 border border-transparent hover:border-emerald-500/20 rounded transition-colors flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg> UP</button>
-                        <button onclick="voteMessage('${msg.msgId}', -1)" class="text-[11px] uppercase tracking-wider font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-2 py-0.5 border border-transparent hover:border-red-500/20 rounded transition-colors flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> DOWN</button>
+                        <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[10px] uppercase tracking-wider font-bold text-emerald-500/70 hover:text-emerald-400 hover:bg-emerald-500/10 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>UP</button>
+                        <button onclick="voteMessage('${msg.msgId}', -1)" class="text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>DN</button>
                         ` : ''}
-                        ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-[11px] uppercase tracking-wider font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-2 py-0.5 border border-transparent hover:border-red-500/20 rounded transition-colors">Terminate</button>` : ''}
+                        ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors">DEL</button>` : ''}
                     </div>
                 </div>
             `;
@@ -646,8 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
             li.innerHTML = `
                     <div class="flex flex-col md:flex-row items-center gap-1.5 md:gap-3 w-full">
                         <div class="relative shrink-0 flex items-center justify-center">
-                            <div class="w-12 h-12 md:w-10 md:h-10 rounded-full ${avatarClass} flex items-center justify-center font-bold text-sm shadow-md">
-                                ${user.isBot ? `<svg class="w-6 h-6 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial}
+                            <div class="w-12 h-12 md:w-10 md:h-10 rounded-full ${avatarClass} flex items-center justify-center font-bold text-sm shadow-md overflow-hidden">
+                                ${user.avatar ? `<img src="${user.avatar}" class="w-full h-full object-cover" />` : (user.isBot ? `<svg class="w-6 h-6 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial)}
                             </div>
                             <div class="absolute bottom-0 right-0 md:bottom-0 md:right-0 w-3 h-3 md:w-3 md:h-3 ${user.isBot ? 'bg-indigo-500' : 'bg-emerald-500'} border-2 border-[#18181b] rounded-full"></div>
                         </div>

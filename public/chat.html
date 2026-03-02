@@ -32,6 +32,41 @@
             background-color: #52525b;
         }
 
+        /* Message entrance animation */
+        @keyframes msgSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .msg-enter {
+            animation: msgSlideIn 0.25s ease-out;
+        }
+
+        /* Auto-growing textarea */
+        #message-input {
+            resize: none;
+            overflow-y: hidden;
+            max-height: 120px;
+            min-height: 22px;
+            line-height: 22px;
+        }
+
+        #message-input::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #message-input::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 2px;
+        }
+
         /* Sleek Glassmorphism login */
         .glass-panel {
             background: rgba(24, 24, 27, 0.7);
@@ -259,35 +294,46 @@
 
                 <!-- Messages Area -->
                 <div id="messages-container"
-                    class="flex-1 overflow-y-auto px-6 pt-6 pb-2 space-y-5 chat-scroll bg-gradient-to-b from-[#0c0a09] to-[#121214]">
+                    class="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-2 space-y-2.5 chat-scroll bg-gradient-to-b from-[#0c0a09] to-[#121214]">
                     <!-- Messages will be injected here -->
                 </div>
 
+                <!-- Typing Indicator -->
+                <div id="typing-indicator" class="hidden px-6 py-1 text-zinc-500 text-xs font-mono">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="flex gap-0.5">
+                            <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
+                                style="animation-delay: 0s"></span>
+                            <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
+                                style="animation-delay: 0.15s"></span>
+                            <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
+                                style="animation-delay: 0.3s"></span>
+                        </span>
+                        <span id="typing-text">Someone is typing...</span>
+                    </span>
+                </div>
+
                 <!-- Input Area -->
-                <div class="p-4 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto">
-                    <form id="chat-form" class="flex flex-col gap-2 relative max-w-5xl mx-auto">
+                <div class="px-3 md:px-4 pb-3 pt-2 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto">
+                    <form id="chat-form" class="relative max-w-4xl mx-auto">
                         <div
-                            class="flex items-center bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-inner">
-                            <div class="px-4 text-zinc-500">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
-                                    </path>
-                                </svg>
-                            </div>
-                            <input type="text" id="message-input" autocomplete="off"
-                                placeholder="Type a message to the group... (@gemini to query AI)"
-                                class="flex-1 py-4 bg-transparent focus:outline-none text-[15px] text-zinc-100 placeholder-zinc-500 font-medium w-full" />
-                            <div class="px-2">
+                            class="flex items-end bg-zinc-900/80 border border-zinc-700/80 rounded-2xl overflow-hidden focus-within:border-indigo-500/70 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all shadow-lg">
+                            <textarea id="message-input" autocomplete="off" rows="1"
+                                placeholder="Message the group... (@gemini for AI)"
+                                class="flex-1 py-3 px-4 bg-transparent focus:outline-none text-[14px] text-zinc-100 placeholder-zinc-500 font-medium w-full"></textarea>
+                            <div class="p-1.5 shrink-0 self-end">
                                 <button type="submit"
-                                    class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-6 py-2.5 font-bold transition-all text-sm flex items-center shadow-lg hover:shadow-indigo-500/25">
-                                    SEND <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+                                    class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl w-9 h-9 font-bold transition-all text-sm flex items-center justify-center shadow-md hover:shadow-indigo-500/25 active:scale-95">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                            d="M5 12h14M12 5l7 7-7 7"></path>
                                     </svg>
                                 </button>
                             </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-1 px-2">
+                            <span class="text-[10px] text-zinc-600 font-mono">Shift+Enter for new line</span>
+                            <span id="char-count" class="text-[10px] text-zinc-600 font-mono"></span>
                         </div>
                     </form>
                 </div>
