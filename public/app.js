@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPasswordInput = document.getElementById('confirm-password-input');
     const tabLogin = document.getElementById('tab-login');
     const tabRegister = document.getElementById('tab-register');
+    const tabGuest = document.getElementById('tab-guest');
+    const passwordContainer = document.getElementById('password-container');
     const authError = document.getElementById('auth-error');
     const authSubmitBtn = document.getElementById('auth-submit-btn');
     const authFormContainer = document.getElementById('entry-modal');
@@ -204,7 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
         tabLogin.classList.replace('text-zinc-500', 'text-indigo-400');
         tabRegister.classList.replace('border-indigo-500', 'border-transparent');
         tabRegister.classList.replace('text-indigo-400', 'text-zinc-500');
+        tabGuest.classList.replace('border-indigo-500', 'border-transparent');
+        tabGuest.classList.replace('text-indigo-400', 'text-zinc-500');
+
         confirmPasswordContainer.classList.add('hidden');
+        passwordContainer.classList.remove('hidden');
+        passwordInput.setAttribute('required', 'true');
+        usernameInput.placeholder = "Alias / Callsign";
         authSubmitBtn.textContent = 'Authenticate';
         authError.classList.add('hidden');
     });
@@ -216,8 +224,32 @@ document.addEventListener('DOMContentLoaded', () => {
         tabRegister.classList.replace('text-zinc-500', 'text-indigo-400');
         tabLogin.classList.replace('border-indigo-500', 'border-transparent');
         tabLogin.classList.replace('text-indigo-400', 'text-zinc-500');
+        tabGuest.classList.replace('border-indigo-500', 'border-transparent');
+        tabGuest.classList.replace('text-indigo-400', 'text-zinc-500');
+
         confirmPasswordContainer.classList.remove('hidden');
+        passwordContainer.classList.remove('hidden');
+        passwordInput.setAttribute('required', 'true');
+        usernameInput.placeholder = "Alias / Callsign";
         authSubmitBtn.textContent = 'Register Account';
+        authError.classList.add('hidden');
+    });
+
+    tabGuest.addEventListener('click', (e) => {
+        e.preventDefault();
+        authMode = 'guest';
+        tabGuest.classList.replace('border-transparent', 'border-indigo-500');
+        tabGuest.classList.replace('text-zinc-500', 'text-indigo-400');
+        tabLogin.classList.replace('border-indigo-500', 'border-transparent');
+        tabLogin.classList.replace('text-indigo-400', 'text-zinc-500');
+        tabRegister.classList.replace('border-indigo-500', 'border-transparent');
+        tabRegister.classList.replace('text-indigo-400', 'text-zinc-500');
+
+        confirmPasswordContainer.classList.add('hidden');
+        passwordContainer.classList.add('hidden');
+        passwordInput.removeAttribute('required');
+        usernameInput.placeholder = "Guest Name";
+        authSubmitBtn.textContent = 'Enter as Guest';
         authError.classList.add('hidden');
     });
 
@@ -228,7 +260,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = passwordInput.value;
         const confirmPassword = confirmPasswordInput.value;
 
-        if (!username || !password) return;
+        if (!username) return;
+        if (authMode !== 'guest' && !password) return;
+
+        if (authMode === 'guest') {
+            try {
+                const res = await fetch('/api/guest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Guest login failed');
+
+                myUsername = data.user.username;
+                isAdmin = false;
+                localStorage.setItem('chat_token', data.token);
+
+                connectSocket(data.token);
+            } catch (err) {
+                showAuthError(err.message);
+            }
+            return;
+        }
 
         if (authMode === 'register') {
             if (password !== confirmPassword) {

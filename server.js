@@ -176,6 +176,25 @@ app.post('/api/login', (req, res) => {
     }
 });
 
+app.post('/api/guest', (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Missing username' });
+
+        // Generate a clean guest name and token
+        const finalUsername = username.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 15) + "_guest";
+        const token = jwt.sign(
+            { id: 'guest_' + Date.now(), username: finalUsername, role: 'user', reputation: 0 },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({ token, user: { username: finalUsername, role: 'user', reputation: 0 } });
+    } catch (e) {
+        res.status(500).json({ error: 'Server error parsing guest token' });
+    }
+});
+
 app.get('/api/users/status', (req, res) => {
     db.all('SELECT username, last_login FROM users ORDER BY last_login DESC', [], (err, rows) => {
         if (err) return res.status(500).json({ error: 'DB error' });
