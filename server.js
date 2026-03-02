@@ -51,6 +51,26 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Source Code Viewer Endpoint (for updates.html)
+app.get('/api/source/:file', (req, res) => {
+    const requestedFile = req.params.file;
+    const allowedFiles = {
+        'server.js': path.join(__dirname, 'server.js'),
+        'app.js': path.join(__dirname, 'public', 'app.js'),
+        'chat.html': path.join(__dirname, 'public', 'chat.html'),
+        'index.html': path.join(__dirname, 'public', 'index.html')
+    };
+
+    if (allowedFiles[requestedFile]) {
+        fs.readFile(allowedFiles[requestedFile], 'utf8', (err, data) => {
+            if (err) return res.status(500).json({ error: 'Failed to read source file' });
+            res.type('text/plain').send(data);
+        });
+    } else {
+        res.status(403).json({ error: 'Access to this file is strictly forbidden by the Network Overlord.' });
+    }
+});
+
 // Neural Link endpoint
 app.post('/api/suggestions', (req, res) => {
     try {
@@ -222,6 +242,18 @@ Return ONLY JSON. Do not return markdown wrapping or backticks.
         console.error("Snow Predictor Error: ", e);
         res.status(500).json({ error: 'Data correlation failed.' });
     }
+});
+
+// MunnyCoin Status
+let munnPrice = 0.042;
+setInterval(() => {
+    const volatility = (Math.random() - 0.48) * 0.005;
+    munnPrice = Math.max(0.001, munnPrice + volatility);
+}, 15000);
+
+app.get('/api/munn-coin', (req, res) => {
+    const change = (Math.random() - 0.45) * 5; // Fake 24h % change
+    res.json({ price: munnPrice.toFixed(4), change24h: change.toFixed(2) });
 });
 
 // Store active users: socket.id -> username
@@ -581,7 +613,7 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

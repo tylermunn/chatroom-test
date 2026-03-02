@@ -58,6 +58,32 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTime();
     setInterval(updateTime, 60000);
 
+    // Dynamic MunnyCoin Ticker Hook
+    let currentMunnTickerInfo = "";
+    async function fetchMunnCoinTicker() {
+        try {
+            const res = await fetch('/api/munn-coin');
+            const data = await res.json();
+
+            const txtColor = parseFloat(data.change24h) >= 0 ? "text-emerald-400" : "text-red-400";
+            const sign = parseFloat(data.change24h) >= 0 ? "+" : "";
+
+            const liveTickerText = document.getElementById('live-ticker-text');
+            if (liveTickerText) {
+                // If it doesn't already have MUNN, attach it
+                if (!liveTickerText.innerHTML.includes('id="munn-ticker-span"')) {
+                    liveTickerText.innerHTML = `<span id="munn-ticker-span" class="font-bold"></span> *** ` + liveTickerText.innerHTML;
+                }
+                const mTicker = document.getElementById('munn-ticker-span');
+                if (mTicker) {
+                    mTicker.innerHTML = `$MUNN [ <span class="text-zinc-100">$${data.price}</span> | <span class="${txtColor}">${sign}${data.change24h}%</span> ]`;
+                }
+            }
+        } catch (e) { }
+    }
+    fetchMunnCoinTicker();
+    setInterval(fetchMunnCoinTicker, 8000);
+
     // Initial weather fetch widget for top Nav
     async function updateCurrentWeather() {
         try {
