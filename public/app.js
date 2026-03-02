@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const passwordContainer = document.getElementById('password-container');
     const authError = document.getElementById('auth-error');
     const authSubmitBtn = document.getElementById('auth-submit-btn');
-    const authFormContainer = document.getElementById('entry-modal');
 
     let authMode = 'login'; // 'login' or 'register'
     const mainApp = document.getElementById('main-app');

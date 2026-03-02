@@ -3,7 +3,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
-const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -62,10 +61,7 @@ app.get('/api/source/:file', (req, res) => {
     };
 
     if (allowedFiles[requestedFile]) {
-        fs.readFile(allowedFiles[requestedFile], 'utf8', (err, data) => {
-            if (err) return res.status(500).json({ error: 'Failed to read source file' });
-            res.type('text/plain').send(data);
-        });
+        res.type('text/plain').sendFile(allowedFiles[requestedFile]);
     } else {
         res.status(403).json({ error: 'Access to this file is strictly forbidden by the Network Overlord.' });
     }
@@ -290,6 +286,13 @@ const ADMIN_PIN = '0620';
 const adminUsers = new Set(); // store socket.ids of admins
 const adminAttempts = new Map(); // tracking failed attempts for kicks
 
+// Build user roster for broadcasting
+function buildRoster() {
+    const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation }));
+    if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
+    return roster;
+}
+
 // Initialize Gemini
 function getGeminiClient() {
     if (process.env.GEMINI_API_KEY) {
@@ -344,9 +347,7 @@ io.on('connection', (socket) => {
         pushHistory('system', sysMsg);
 
         // Send updated user list to everyone
-        const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation }));
-        if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
-        io.emit('update_roster', roster);
+        io.emit('update_roster', buildRoster());
 
         // Send chat history to the newly joined user
         socket.emit('chat_history', messageHistory);
@@ -538,9 +539,7 @@ io.on('connection', (socket) => {
             pushHistory('admin_announcement', announcementMsg);
 
             // Broadcast the updated roster so everyone sees the crown
-            const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation }));
-            if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
-            io.emit('update_roster', roster);
+            io.emit('update_roster', buildRoster());
         } else {
             let attempts = (adminAttempts.get(socket.id) || 0) + 1;
             adminAttempts.set(socket.id, attempts);
@@ -620,9 +619,7 @@ io.on('connection', (socket) => {
             adminUsers.delete(socket.id);
 
             // Send updated user list to everyone
-            const roster = Array.from(activeUsers.entries()).map(([id, name]) => ({ id, username: name, isAdmin: adminUsers.has(id) }));
-            if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
-            io.emit('update_roster', roster);
+            io.emit('update_roster', buildRoster());
         }
         console.log('User disconnected:', socket.id);
     });
