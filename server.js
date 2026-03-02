@@ -94,8 +94,7 @@ app.post('/api/suggestions', (req, res) => {
             io.emit('system_message', sysMsg);
 
             // Add to chat history
-            messageHistory.push({ type: 'system', data: sysMsg });
-            if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+            pushHistory('system', sysMsg);
 
             // Send Email Notification if env vars exist
             if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -280,7 +279,11 @@ const activeUsers = new Map();
 
 // Store recent message history
 let messageHistory = [];
-const MAX_HISTORY = 100; // Store last 100 messages
+const MAX_HISTORY = 100;
+function pushHistory(type, data) {
+    messageHistory.push({ type, data });
+    if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+}
 
 // Simple pin for admin access
 const ADMIN_PIN = '0620';
@@ -338,8 +341,7 @@ io.on('connection', (socket) => {
         io.emit('system_message', sysMsg);
 
         // Add to history
-        messageHistory.push({ type: 'system', data: sysMsg });
-        if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+        pushHistory('system', sysMsg);
 
         // Send updated user list to everyone
         const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation }));
@@ -368,7 +370,7 @@ io.on('connection', (socket) => {
                         timestamp: new Date().toISOString()
                     };
                     io.emit('system_message', sysMsg);
-                    messageHistory.push({ type: 'system', data: sysMsg });
+                    pushHistory('system', sysMsg);
                     return;
                 } else if (command === '/leaderboard') {
                     db.all('SELECT username, reputation_score FROM users ORDER BY reputation_score DESC LIMIT 5', [], (err, rows) => {
@@ -377,7 +379,7 @@ io.on('connection', (socket) => {
                         rows.forEach((r, i) => text += `${i + 1}. ${r.username} [${r.reputation_score}]\n`);
                         const sysMsg = { text, timestamp: new Date().toISOString() };
                         io.emit('system_message', sysMsg);
-                        messageHistory.push({ type: 'system', data: sysMsg });
+                        pushHistory('system', sysMsg);
                     });
                     return;
                 } else if (isMod) {
@@ -398,7 +400,7 @@ io.on('connection', (socket) => {
                             const adminName = userObj.username;
                             const sysMsg = { text: `SECURITY ALERT: ${targetName} was kicked by ${adminName}.`, timestamp: new Date().toISOString() };
                             io.emit('system_message', sysMsg);
-                            messageHistory.push({ type: 'system', data: sysMsg });
+                            pushHistory('system', sysMsg);
                             setTimeout(() => {
                                 const targetSocket = io.sockets.sockets.get(targetSocketId);
                                 if (targetSocket) targetSocket.disconnect();
@@ -424,8 +426,7 @@ io.on('connection', (socket) => {
             io.emit('chat_message', chatMsg);
 
             // Add to history
-            messageHistory.push({ type: 'chat', data: chatMsg });
-            if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+            pushHistory('chat', chatMsg);
 
             // Check for Gemini Mention
             const aiClient = getGeminiClient();
@@ -455,8 +456,7 @@ io.on('connection', (socket) => {
                             reactions: {}
                         };
                         io.emit('chat_message', geminiMsg);
-                        messageHistory.push({ type: 'chat', data: geminiMsg });
-                        if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+                        pushHistory('chat', geminiMsg);
                     } catch (err) {
                         console.error("Gemini Error:", err);
                         // Optional: could send an error message from Gemini to chat, but silent failure is safer.
@@ -535,8 +535,7 @@ io.on('connection', (socket) => {
                 timestamp: new Date().toISOString()
             };
             io.emit('admin_announcement', announcementMsg);
-            messageHistory.push({ type: 'admin_announcement', data: announcementMsg });
-            if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+            pushHistory('admin_announcement', announcementMsg);
 
             // Broadcast the updated roster so everyone sees the crown
             const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation }));
@@ -554,8 +553,7 @@ io.on('connection', (socket) => {
                     timestamp: new Date().toISOString()
                 };
                 io.emit('system_message', sysMsg);
-                messageHistory.push({ type: 'system', data: sysMsg });
-                if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+                pushHistory('system', sysMsg);
 
                 socket.emit('kicked_out');
                 setTimeout(() => socket.disconnect(), 500);
@@ -566,8 +564,7 @@ io.on('connection', (socket) => {
                     timestamp: new Date().toISOString()
                 };
                 io.emit('system_message', sysMsg);
-                messageHistory.push({ type: 'system', data: sysMsg });
-                if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+                pushHistory('system', sysMsg);
 
                 socket.emit('admin_auth_fail');
             }
@@ -616,8 +613,7 @@ io.on('connection', (socket) => {
             io.emit('system_message', sysMsg);
 
             // Add to history
-            messageHistory.push({ type: 'system', data: sysMsg });
-            if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+            pushHistory('system', sysMsg);
 
             // Remove from active users
             activeUsers.delete(socket.id);

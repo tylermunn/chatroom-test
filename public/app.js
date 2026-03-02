@@ -198,60 +198,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Auth Tabs
-    tabLogin.addEventListener('click', (e) => {
-        e.preventDefault();
-        authMode = 'login';
-        tabLogin.classList.replace('border-transparent', 'border-indigo-500');
-        tabLogin.classList.replace('text-zinc-500', 'text-indigo-400');
-        tabRegister.classList.replace('border-indigo-500', 'border-transparent');
-        tabRegister.classList.replace('text-indigo-400', 'text-zinc-500');
-        tabGuest.classList.replace('border-indigo-500', 'border-transparent');
-        tabGuest.classList.replace('text-indigo-400', 'text-zinc-500');
+    // Auth Tabs Logic
+    const tabs = { 'login': tabLogin, 'register': tabRegister, 'guest': tabGuest };
+    function switchTab(mode) {
+        authMode = mode;
+        Object.keys(tabs).forEach(m => {
+            if (m === mode) {
+                tabs[m].classList.replace('border-transparent', 'border-indigo-500');
+                tabs[m].classList.replace('text-zinc-500', 'text-indigo-400');
+            } else {
+                tabs[m].classList.replace('border-indigo-500', 'border-transparent');
+                tabs[m].classList.replace('text-indigo-400', 'text-zinc-500');
+            }
+        });
 
-        confirmPasswordContainer.classList.add('hidden');
-        passwordContainer.classList.remove('hidden');
-        passwordInput.setAttribute('required', 'true');
-        usernameInput.placeholder = "Alias / Callsign";
-        authSubmitBtn.textContent = 'Authenticate';
         authError.classList.add('hidden');
-    });
+        if (mode === 'guest') {
+            confirmPasswordContainer.classList.add('hidden');
+            passwordContainer.classList.add('hidden');
+            passwordInput.removeAttribute('required');
+            usernameInput.placeholder = "Guest Name";
+            authSubmitBtn.textContent = 'Enter as Guest';
+        } else {
+            passwordContainer.classList.remove('hidden');
+            passwordInput.setAttribute('required', 'true');
+            usernameInput.placeholder = "Alias / Callsign";
 
-    tabRegister.addEventListener('click', (e) => {
-        e.preventDefault();
-        authMode = 'register';
-        tabRegister.classList.replace('border-transparent', 'border-indigo-500');
-        tabRegister.classList.replace('text-zinc-500', 'text-indigo-400');
-        tabLogin.classList.replace('border-indigo-500', 'border-transparent');
-        tabLogin.classList.replace('text-indigo-400', 'text-zinc-500');
-        tabGuest.classList.replace('border-indigo-500', 'border-transparent');
-        tabGuest.classList.replace('text-indigo-400', 'text-zinc-500');
+            if (mode === 'register') {
+                confirmPasswordContainer.classList.remove('hidden');
+                authSubmitBtn.textContent = 'Register Account';
+            } else {
+                confirmPasswordContainer.classList.add('hidden');
+                authSubmitBtn.textContent = 'Authenticate';
+            }
+        }
+    }
 
-        confirmPasswordContainer.classList.remove('hidden');
-        passwordContainer.classList.remove('hidden');
-        passwordInput.setAttribute('required', 'true');
-        usernameInput.placeholder = "Alias / Callsign";
-        authSubmitBtn.textContent = 'Register Account';
-        authError.classList.add('hidden');
-    });
-
-    tabGuest.addEventListener('click', (e) => {
-        e.preventDefault();
-        authMode = 'guest';
-        tabGuest.classList.replace('border-transparent', 'border-indigo-500');
-        tabGuest.classList.replace('text-zinc-500', 'text-indigo-400');
-        tabLogin.classList.replace('border-indigo-500', 'border-transparent');
-        tabLogin.classList.replace('text-indigo-400', 'text-zinc-500');
-        tabRegister.classList.replace('border-indigo-500', 'border-transparent');
-        tabRegister.classList.replace('text-indigo-400', 'text-zinc-500');
-
-        confirmPasswordContainer.classList.add('hidden');
-        passwordContainer.classList.add('hidden');
-        passwordInput.removeAttribute('required');
-        usernameInput.placeholder = "Guest Name";
-        authSubmitBtn.textContent = 'Enter as Guest';
-        authError.classList.add('hidden');
-    });
+    tabLogin.addEventListener('click', (e) => { e.preventDefault(); switchTab('login'); });
+    tabRegister.addEventListener('click', (e) => { e.preventDefault(); switchTab('register'); });
+    tabGuest.addEventListener('click', (e) => { e.preventDefault(); switchTab('guest'); });
 
     // Handle Auth Submit
     authForm.addEventListener('submit', async (e) => {
@@ -260,72 +245,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = passwordInput.value;
         const confirmPassword = confirmPasswordInput.value;
 
-        if (!username) return;
-        if (authMode !== 'guest' && !password) return;
-
-        if (authMode === 'guest') {
-            try {
-                const res = await fetch('/api/guest', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Guest login failed');
-
-                myUsername = data.user.username;
-                isAdmin = false;
-                localStorage.setItem('chat_token', data.token);
-
-                connectSocket(data.token);
-            } catch (err) {
-                showAuthError(err.message);
-            }
-            return;
+        if (!username || (authMode !== 'guest' && !password)) return;
+        if (authMode === 'register' && password !== confirmPassword) {
+            return showAuthError("Passwords do not match");
         }
 
-        if (authMode === 'register') {
-            if (password !== confirmPassword) {
-                showAuthError("Passwords do not match");
-                return;
-            }
-            try {
-                const res = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Registration failed');
+        try {
+            const res = await fetch(`/api/${authMode}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(authMode === 'guest' ? { username } : { username, password })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
-                // Switch to login gently
-                authMode = 'login';
-                tabLogin.click();
+            if (authMode === 'register') {
+                switchTab('login');
                 passwordInput.value = '';
-                showAuthError("Registration successful. Please login.", true);
-            } catch (err) {
-                showAuthError(err.message);
+                return showAuthError("Registration successful. Please login.", true);
             }
-        } else {
-            // Login
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Login failed');
 
-                myUsername = data.user.username;
-                isAdmin = data.user.role === 'mod';
-                localStorage.setItem('chat_token', data.token);
-
-                connectSocket(data.token);
-
-            } catch (err) {
-                showAuthError(err.message);
-            }
+            myUsername = data.user.username;
+            isAdmin = data.user.role === 'mod';
+            localStorage.setItem('chat_token', data.token);
+            connectSocket(data.token);
+        } catch (err) {
+            showAuthError(err.message);
         }
     });
 
