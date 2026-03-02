@@ -1,3 +1,6 @@
 node_modules/
 .env
-.DS_Store
+chat.db
+package-lock.json
+server.log
+github_sync/

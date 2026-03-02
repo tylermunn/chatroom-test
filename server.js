@@ -15,9 +15,11 @@ const io = new Server(server);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
 
-// Setup DB
-const db = new sqlite3.Database(process.env.DB_PATH || './chat.db', (err) => {
+// Setup DB — use DB_PATH env var (set to /data/chat.db on Fly.io persistent volume)
+const DB_PATH = process.env.DB_PATH || './chat.db';
+const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) console.error("Database opening error: ", err);
+    else console.log(`Database opened at: ${DB_PATH}`);
 });
 
 db.serialize(() => {
@@ -177,9 +179,9 @@ app.post('/api/guest', (req, res) => {
         if (!username) return res.status(400).json({ error: 'Missing username' });
 
         // Generate a clean guest name and token
-        const finalUsername = username.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 15) + "_guest";
+        const finalUsername = username.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 20);
         const token = jwt.sign(
-            { id: 'guest_' + Date.now(), username: finalUsername, role: 'user', reputation: 0 },
+            { id: 'guest_' + Date.now(), username: finalUsername, role: 'user', reputation: 0, isGuest: true },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -288,7 +290,7 @@ const adminAttempts = new Map(); // tracking failed attempts for kicks
 
 // Build user roster for broadcasting
 function buildRoster() {
-    const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation }));
+    const roster = Array.from(activeUsers.values()).map(u => ({ id: u.id, username: u.username, isAdmin: u.role === 'mod' || adminUsers.has(u.id), reputation: u.reputation, isVerified: !u.isGuest }));
     if (getGeminiClient() || process.env.GEMINI_API_KEY) roster.unshift({ id: 'gemini_bot', username: 'Gemini', isBot: true });
     return roster;
 }
@@ -326,7 +328,8 @@ io.on('connection', (socket) => {
     const username = socket.user.username;
 
     // Store user data instead of just trusting client string completely
-    activeUsers.set(socket.id, { username, role: socket.user.role, id: socket.id, reputation: socket.user.reputation });
+    const isGuest = !!socket.user.isGuest;
+    activeUsers.set(socket.id, { username, role: socket.user.role, id: socket.id, reputation: socket.user.reputation, isGuest });
     if (socket.user.role === 'mod') {
         adminUsers.add(socket.id);
     }
@@ -420,6 +423,7 @@ io.on('connection', (socket) => {
                 timestamp: new Date().toISOString(),
                 id: socket.id,
                 isAdmin: isMod,
+                isVerified: !userObj.isGuest,
                 score: 0,
                 upvoters: [],
                 downvoters: []

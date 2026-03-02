@@ -10,6 +10,7 @@ primary_region = 'ewr'
 
 [env]
   PORT = '8080'
+  DB_PATH = '/data/chat.db'
 
 [http_service]
   internal_port = 8080
