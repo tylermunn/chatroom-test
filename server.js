@@ -16,7 +16,7 @@ const io = new Server(server);
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
 
 // Setup DB
-const db = new sqlite3.Database('./chat.db', (err) => {
+const db = new sqlite3.Database(process.env.DB_PATH || './chat.db', (err) => {
     if (err) console.error("Database opening error: ", err);
 });
 
