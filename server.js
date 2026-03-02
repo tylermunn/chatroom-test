@@ -26,7 +26,8 @@ db.serialize(() => {
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT DEFAULT 'user',
-        reputation_score INTEGER DEFAULT 0
+        reputation_score INTEGER DEFAULT 0,
+        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
 });
 
@@ -75,7 +76,7 @@ app.post('/api/suggestions', (req, res) => {
         // Alert chat
         const typeLabel = type.toUpperCase();
         const sysMsg = {
-            text: `[NEURAL LINK] A new ${typeLabel} transmission has been submitted by ${name}.`,
+            text: `[SUGGESTION] A new ${typeLabel} transmission has been submitted by ${name}.`,
             timestamp: new Date().toISOString()
         };
         io.emit('system_message', sysMsg);
@@ -125,11 +126,31 @@ app.post('/api/login', (req, res) => {
             if (!match) return res.status(401).json({ error: 'Invalid credentials' });
 
             const token = jwt.sign({ id: user.id, username: user.username, role: user.role, reputation: user.reputation_score }, JWT_SECRET, { expiresIn: '24h' });
+
+            // Update last_login
+            db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+
             res.json({ token, user: { username: user.username, role: user.role, reputation: user.reputation_score } });
         });
     } catch (e) {
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+app.get('/api/users/status', (req, res) => {
+    db.all('SELECT username, last_login FROM users ORDER BY last_login DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'DB error' });
+
+        // Get active usernames
+        const activeUsernames = new Set(Array.from(activeUsers.values()).map(u => u.username));
+
+        const mappedRows = rows.map(r => ({
+            ...r,
+            isActive: activeUsernames.has(r.username)
+        }));
+
+        res.json(mappedRows);
+    });
 });
 
 // API endpoint for AI Snow Day Predictor
@@ -147,8 +168,8 @@ app.get('/api/snow-prediction', async (req, res) => {
         }
 
         const prompt = `
-You are a highly analytical AI meteorologist assistant for Syracuse Latin School. 
-I am going to give you raw weather data for the next 7 days from the Open-Meteo API for Syracuse, NY.
+You are a highly analytical AI meteorologist assistant. 
+I am going to give you raw weather data for the next 7 days from the Open-Meteo API.
 Analyze the expected snowfall, precipitation, temperatures, and wind speeds.
 Calculate the "Snow Day Probability" (a percentage from 0% to 100%) for each day.
 Only output a rigid JSON array containing objects with the following keys:
@@ -241,7 +262,7 @@ io.on('connection', (socket) => {
 
         // Notify everyone that someone joined
         const sysMsg = {
-            text: `${username} accessed the library catalog.`,
+            text: `${username} joined the chat.`,
             timestamp: new Date().toISOString()
         };
         io.emit('system_message', sysMsg);
@@ -343,7 +364,7 @@ io.on('connection', (socket) => {
 
                 (async () => {
                     try {
-                        const systemPrompt = "You are Gemini, an AI participating in a student chatroom that is disguised as a school library index. Keep your answers helpful, concise, and strictly school appropriate. Do not use profanity, violence, or inappropriate topics.";
+                        const systemPrompt = "You are Gemini, an AI participating in a chatroom. Keep your answers helpful and concise.";
                         const response = await aiClient.models.generateContent({
                             model: 'gemini-2.5-flash',
                             contents: promptText,
@@ -519,7 +540,7 @@ io.on('connection', (socket) => {
             const username = userObj.username;
             // Notify everyone that someone left
             const sysMsg = {
-                text: `${username} disconnected from the catalog.`,
+                text: `${username} left the chat.`,
                 timestamp: new Date().toISOString()
             };
             io.emit('system_message', sysMsg);

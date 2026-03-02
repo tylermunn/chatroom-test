@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>munn.fun - System Updates</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #050505;
+            color: #e5e5e5;
+            background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 12, 0.8);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .neon-text {
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen relative overflow-x-hidden">
+    <div class="scanlines"></div>
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute top-[20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#00ffcc]/5 blur-[150px]"></div>
+        <div class="absolute bottom-[-10%] right-[10%] w-[30%] h-[30%] rounded-full bg-[#ff00a0]/5 blur-[150px]"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="relative z-10 border-b border-[#00ffcc]/20 bg-[#050505]/90 backdrop-blur-md sticky top-0">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/index.html" class="hover:bg-zinc-800 p-2 rounded-full transition-colors group mr-2"
+                    title="Go Home">
+                    <svg class="w-5 h-5 text-zinc-400 group-hover:text-white" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                        </path>
+                    </svg>
+                </a>
+                <div
+                    class="w-8 h-8 flex items-center justify-center text-[#00ffcc] font-bold border border-[#00ffcc]/50 bg-[#00ffcc]/10 shadow-[0_0_10px_rgba(0,255,204,0.2)]">
+                    M.F</div>
+                <h1 class="font-bold text-xl tracking-widest text-zinc-100 uppercase uppercase neon-text">munn.fun</h1>
+            </div>
+            <div class="flex items-center gap-4 text-[#00ffcc]/70">
+                <div id="nav-time" class="hidden md:block text-sm font-bold tracking-widest uppercase"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative z-10 max-w-5xl mx-auto px-6 py-12 flex flex-col gap-8">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl md:text-5xl font-bold text-white tracking-widest mb-4 uppercase">SYSTEM <span
+                    class="neon-text">UPDATES</span></h2>
+            <p class="text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto">Developer changelog and repository
+                overview. View the source logic descriptions and recent pushes here without needing to access GitHub
+                directly.</p>
+        </div>
+
+        <div class="glass-panel p-8 rounded-xl relative">
+            <h3 class="text-2xl font-bold text-white mb-4 uppercase tracking-widest border-b border-[#00ffcc]/30 pb-2">
+                Repository Location</h3>
+            <div
+                class="bg-black/50 border border-zinc-800 p-4 rounded text-[#00ffcc] font-mono text-sm mb-6 inline-block">
+                git clone https://github.com/tylermunn/chatroom-test.git
+            </div>
+
+            <h3 class="text-2xl font-bold text-white mb-4 uppercase tracking-widest border-b border-[#00ffcc]/30 pb-2">
+                Source Files Overview</h3>
+            <p class="text-sm text-zinc-400 mb-6 font-bold text-[#00ffcc]">[ Gemini Assisted Description Generated ]</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-8">
+                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
+                    <span class="text-[#00ffcc] font-bold">server.js</span>
+                    <p class="text-zinc-400 mt-2">Node.js/Express backend handling HTTP routes, Socket.io for Real-Time
+                        chat, SQLite3 DB for persistent user state, and integrated Google Gemini generative AI API
+                        endpoints.</p>
+                </div>
+                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
+                    <span class="text-[#ff00a0] font-bold">public/app.js</span>
+                    <p class="text-zinc-400 mt-2">Client-side logic handling dynamic DOM updates, WebSockets event
+                        listeners, JSON Web Token checking in local storage for auto-login, and rendering live messaging
+                        UI elements.</p>
+                </div>
+                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
+                    <span class="text-yellow-400 font-bold">public/chat.html</span>
+                    <p class="text-zinc-400 mt-2">Main interface for the application with a dedicated dashboard, online
+                        user list (active PlayStation-style dots), chat window, scrolling ticker, and Gemini integration
+                        popup components.</p>
+                </div>
+                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
+                    <span class="text-indigo-400 font-bold">public/index.html & suggestions.html</span>
+                    <p class="text-zinc-400 mt-2">Supporting web pages presenting the site hub, link directories, and
+                        web forms to capture user feedback that is sent to the Node server and logged locally as JSON.
+                    </p>
+                </div>
+            </div>
+
+            <h3 class="text-2xl font-bold text-white mb-4 uppercase tracking-widest border-b border-[#00ffcc]/30 pb-2">
+                Recent Push Requests</h3>
+            <div class="space-y-4">
+                <div class="border-l-2 border-[#00ffcc] pl-4">
+                    <div class="text-xs text-zinc-500 mb-1" id="latest-push-date">Loading date...</div>
+                    <div class="font-bold text-zinc-200 text-lg">fly.io Migration, Updates Page & munn.fun Rebrand</div>
+                    <p class="text-zinc-400 text-sm mt-1">Transferred hosting layer from Render to fly.io environments.
+                        Restructured environment variables for Gemini integration (<span
+                            class="text-zinc-300 font-mono">GEMINI_API_KEY</span>) and Database routing (<span
+                            class="text-zinc-300 font-mono">DB_PATH</span>). Complete rebranding to remove local school
+                        identities (Syracuse Latin) and hacker jargon. Designed new user activity metrics with 'Online
+                        Now' pulsing indicators and exact login tracking. Built this dynamic Updates Page for student
+                        visibility.</p>
+                </div>
+                <div class="border-l-2 border-zinc-700 pl-4">
+                    <div class="text-xs text-zinc-500 mb-1">Previous Release</div>
+                    <div class="font-bold text-zinc-200 text-lg">Initial Generative AI Rollout & SQLite Integration
+                    </div>
+                    <p class="text-zinc-400 text-sm mt-1">Converted completely from memory arrays to persistent
+                        relational disk storage containing User Auth data and Reputation scores. Integrated direct
+                        conversational pathways to the `@gemini` generative AI for real-time query support in the global
+                        chat stream.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('latest-push-date').textContent = new Date().toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('nav-time').textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
+                ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        updateTime();
+        setInterval(updateTime, 60000);
+    </script>
+</body>
+
+</html>

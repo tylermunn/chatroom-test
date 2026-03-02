@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabRegister = document.getElementById('tab-register');
     const authError = document.getElementById('auth-error');
     const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const authFormContainer = document.getElementById('entry-modal');
 
     let authMode = 'login'; // 'login' or 'register'
     const mainApp = document.getElementById('main-app');
@@ -82,9 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTitle() {
         if (unreadCount > 0) {
-            document.title = `(${unreadCount}) Relay_Net`;
+            document.title = `(${unreadCount}) munn.fun - Chat`;
         } else {
-            document.title = 'Secure Relay - Global Connect';
+            document.title = 'munn.fun - Chat';
         }
     }
 
@@ -258,6 +259,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function fetchPreviousUsersStatus() {
+        try {
+            const res = await fetch('/api/users/status');
+            const data = await res.json();
+            if (!res.ok) return;
+
+            // Render on the login UI
+            let listHtml = '<div class="mt-6 border-t border-zinc-800 pt-4"><h3 class="text-xs uppercase tracking-widest text-zinc-500 font-bold mb-3 text-center">Recent Activity</h3><div class="space-y-2 max-h-40 overflow-y-auto chat-scroll pr-1">';
+            data.forEach(u => {
+                let relTime = "";
+                let statusDot = "";
+
+                if (u.isActive) {
+                    relTime = "Active now";
+                    statusDot = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-2"></span>`;
+                } else {
+                    const date = new Date(u.last_login);
+                    const today = new Date();
+                    const diffTime = Math.abs(today - date);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+
+                    if (diffDays > 0) relTime = `logged in ${diffDays} days ago`;
+                    else if (diffHours > 0) relTime = `logged in ${diffHours} hours ago`;
+                    else {
+                        const diffMins = Math.floor(diffTime / (1000 * 60));
+                        relTime = diffMins < 2 ? 'just logged off' : `logged in ${diffMins} mins ago`;
+                    }
+                    statusDot = `<span class="w-2 h-2 rounded-full bg-zinc-600 mr-2"></span>`;
+                }
+
+                listHtml += `
+                    <div class="flex justify-between items-center bg-zinc-900/40 p-2 rounded text-sm px-3 border border-zinc-800/50">
+                        <div class="flex items-center">
+                            ${statusDot}
+                            <span class="font-bold text-zinc-300">${escapeHTML(u.username)}</span>
+                        </div>
+                        <span class="text-[11px] ${u.isActive ? 'text-emerald-400 font-bold' : 'text-zinc-500'} font-mono">${relTime}</span>
+                    </div>
+                `;
+            });
+            listHtml += '</div></div>';
+
+            // Append to auth modal form securely
+            const form = document.getElementById('auth-form');
+            const existingList = document.getElementById('recent-activity-list');
+            if (existingList) existingList.remove();
+
+            const div = document.createElement('div');
+            div.id = 'recent-activity-list';
+            div.innerHTML = listHtml;
+            form.parentNode.appendChild(div);
+
+        } catch (e) { console.error(e); }
+    }
+
     function connectSocket(token) {
         myAvatar.textContent = myUsername.substring(0, 2).toUpperCase();
 
@@ -269,6 +326,18 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.on('connect', () => {
                 mySessionId = socket.id;
                 socket.emit('join_chat'); // Handled securely via token now!
+
+                // Make sure we have the username
+                if (!myUsername) {
+                    // Quick ping to check my user role and username
+                    // Server parses from token! We can parse it here.
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        myUsername = payload.username;
+                        isAdmin = payload.role === 'mod';
+                        myAvatar.textContent = myUsername.substring(0, 2).toUpperCase();
+                    } catch (e) { }
+                }
 
                 entryModal.classList.add('opacity-0');
                 setTimeout(() => {
@@ -284,9 +353,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             socket.on('connect_error', (err) => {
-                showAuthError(err.message);
+                showAuthError("Session expired or invalid login. " + err.message);
                 socket.disconnect();
                 socket = null;
+                localStorage.removeItem('chat_token');
+
+                // Show modal since auto-login failed
+                entryModal.classList.remove('hidden', 'opacity-0');
+                entryModal.classList.add('flex');
+
+                fetchPreviousUsersStatus();
             });
 
             setupSocketListeners();
@@ -576,5 +652,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return str.replace(/[&<>'"]/g, tag => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
         }[tag] || tag));
+    }
+
+    // Auto-Login Check
+    const savedToken = localStorage.getItem('chat_token');
+    if (savedToken) {
+        // Assume valid for a moment, hide modal visually to prevent flicker
+        entryModal.classList.add('opacity-0', 'hidden');
+        entryModal.classList.remove('flex');
+        connectSocket(savedToken);
+    } else {
+        // No token, ensure we fetch previous statuses
+        fetchPreviousUsersStatus();
     }
 });
