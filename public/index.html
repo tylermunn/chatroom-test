@@ -79,6 +79,38 @@
                 border-color: #00ffcc;
             }
         }
+
+        @keyframes floatUp {
+            0% {
+                transform: translateY(110vh) translateX(0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.15;
+            }
+
+            90% {
+                opacity: 0.15;
+            }
+
+            100% {
+                transform: translateY(-10vh) translateX(20px);
+                opacity: 0;
+            }
+        }
+
+        .floating-name {
+            position: fixed;
+            color: #00ffcc;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 
@@ -316,6 +348,36 @@
             }
             // Initial delay before typing begins
             setTimeout(typeCmd, 1200);
+
+            // Floating Historical Users Memorial
+            const historicalUsers = [
+                "MIXT@PE", "VIMARAV", "THE CRUZ SHIP", "XANDIESEL",
+                "WIRD_ANIMATIONS", "EMU55B!", "PRESTO_MVM", "MR CHEESE",
+                "FINK", "BECKETT", "YOMUNN", "AJ", "HENRY", "TARIQ",
+                "WUEEN", "CONNOR"
+            ];
+
+            function createFloatingName() {
+                const el = document.createElement('div');
+                el.className = 'floating-name';
+                el.textContent = historicalUsers[Math.floor(Math.random() * historicalUsers.length)];
+
+                const isLeft = Math.random() > 0.5;
+                const xPos = isLeft ? (Math.random() * 20) : (75 + Math.random() * 20);
+                el.style.left = `${xPos}vw`;
+
+                const duration = 20 + Math.random() * 25;
+                el.style.animation = `floatUp ${duration}s linear forwards`;
+
+                document.body.appendChild(el);
+
+                setTimeout(() => el.remove(), duration * 1000);
+            }
+
+            setInterval(createFloatingName, 2000);
+            for (let i = 0; i < 12; i++) {
+                setTimeout(createFloatingName, Math.random() * 15000);
+            }
         </script>
 </body>
 
