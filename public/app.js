@@ -874,7 +874,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Determine Name Colors based on roles
         let nameColorStr = 'text-zinc-300';
         let badgeHTML = '';
-        if (msg.isAdmin) {
+        if (msg.username.toLowerCase() === 'tmunn') {
+            nameColorStr = 'text-[#FFD700] drop-shadow-[0_0_5px_rgba(255,215,0,0.5)]';
+            badgeHTML = `<span class="text-sm leading-none ml-0.5" title="Creator & Admin">👑</span>`;
+        } else if (msg.isAdmin) {
             nameColorStr = 'text-yellow-500';
             badgeHTML = `<svg class="w-3.5 h-3.5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
         } else if (msg.isBot) {
@@ -887,8 +890,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<img src="${msg.avatar}" class="w-full h-full rounded-full object-cover" />`
             : (msg.isBot ? `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial);
 
+        const isTmunn = msg.username.toLowerCase() === 'tmunn';
         const innerHTML = `
-                <div class="w-7 h-7 shrink-0 rounded-full font-bold flex items-center justify-center text-[10px] border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-sm' : 'bg-zinc-800 text-zinc-300'} mt-0.5 relative overflow-hidden">
+                <div class="w-7 h-7 shrink-0 rounded-full font-bold flex items-center justify-center text-[10px] border border-white/5 ${isTmunn ? 'bg-[#1a1a1a] text-[#FFD700] border-[#FFD700] shadow-[0_0_10px_rgba(255,215,0,0.5)]' : isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-sm' : 'bg-zinc-800 text-zinc-300'} mt-0.5 relative overflow-hidden">
                     ${avatarContent}
                 </div>
                 <div class="min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}" style="max-width: min(80%, 520px);">
@@ -902,7 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ${msg.text.match(/^\[gif:(https?:\/\/[^\]]+)\]$/)
                 ? `<img src="${msg.text.match(/^\[gif:(https?:\/\/[^\]]+)\]$/)[1]}" alt="GIF" class="rounded-xl max-w-[280px] max-h-[220px] object-contain cursor-pointer shadow-sm" style="width: fit-content;" loading="lazy" />`
-                : `<div class="text-[13.5px] leading-normal text-left whitespace-pre-wrap ${isMe ? 'bg-indigo-600 px-2.5 py-1 text-white rounded-xl rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-2.5 py-1.5 border border-indigo-500/20 text-indigo-100 rounded-xl rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
+                : `<div class="text-[13.5px] leading-normal text-left whitespace-pre-wrap ${isTmunn ? 'bg-[#1a1a1a] border border-[#FFD700]/50 px-2.5 py-1 text-[#FFD700] rounded-xl rounded-tl-sm shadow-[0_0_10px_rgba(255,215,0,0.2)]' : isMe ? 'bg-indigo-600 px-2.5 py-1 text-white rounded-xl rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-2.5 py-1.5 border border-indigo-500/20 text-indigo-100 rounded-xl rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
                         ${escapeHTML(msg.text)}
                     </div>`
             }
@@ -978,7 +982,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let nameColorStr = 'text-zinc-200';
             let badgeHTML = '';
             let avatarClass = 'bg-zinc-800 border border-zinc-700 text-zinc-300';
-            if (user.isAdmin) {
+            if (user.username.toLowerCase() === 'tmunn') {
+                nameColorStr = 'text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]';
+                badgeHTML = `<span class="text-sm leading-none ml-0.5" title="Creator & Admin">👑</span>`;
+                avatarClass = 'bg-[#1a1a1a] text-[#FFD700] border-2 border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.5)]';
+            } else if (user.isAdmin) {
                 nameColorStr = 'text-yellow-500';
                 badgeHTML = `<svg class="w-4 h-4 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
                 avatarClass = 'bg-yellow-500 text-zinc-900 border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]';

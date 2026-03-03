@@ -37,7 +37,7 @@ const avatarCache = new Map();
 // Words that must match as standalone (word-boundary checked) to avoid false positives
 const PROFANITY_STRICT = [
     'ass', 'damn', 'hell', 'crap', 'dick', 'cock', 'tit', 'cum', 'hoe',
-    'fag', 'kys', 'af', 'wtf', 'wth', 'stfu', 'gtfo',
+    'fag', 'kys', 'af', 'wtf', 'wth', 'stfu', 'gtfo', 'gay'
 ];
 
 // Words that match anywhere in the text (substring match)
@@ -336,7 +336,11 @@ app.post('/api/register', async (req, res) => {
             if (row) return res.status(400).json({ error: 'Username exists' });
 
             const hash = await bcrypt.hash(password, 10);
-            db.run('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username, hash], function (err) {
+
+            // Auto-grant mod to tmunn
+            const role = lowerUsername === 'tmunn' ? 'mod' : 'user';
+
+            db.run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, role], function (err) {
                 if (err) return res.status(500).json({ error: 'DB error' });
                 res.status(201).json({ success: true });
             });
@@ -357,12 +361,19 @@ app.post('/api/login', (req, res) => {
             const match = await bcrypt.compare(password, user.password_hash);
             if (!match) return res.status(401).json({ error: 'Invalid credentials' });
 
-            const token = jwt.sign({ id: user.id, username: user.username, role: user.role, reputation: user.reputation_score }, JWT_SECRET, { expiresIn: '24h' });
+            // Ensure tmunn is always mod (in case registered before this update)
+            let finalRole = user.role;
+            if (lowerUsername === 'tmunn' && finalRole !== 'mod') {
+                finalRole = 'mod';
+                db.run('UPDATE users SET role = ? WHERE id = ?', ['mod', user.id]);
+            }
+
+            const token = jwt.sign({ id: user.id, username: user.username, role: finalRole, reputation: user.reputation_score }, JWT_SECRET, { expiresIn: '24h' });
 
             // Update last_login
             db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
-            res.json({ token, user: { username: user.username, role: user.role, reputation: user.reputation_score } });
+            res.json({ token, user: { username: user.username, role: finalRole, reputation: user.reputation_score } });
         });
     } catch (e) {
         res.status(500).json({ error: 'Server error' });
