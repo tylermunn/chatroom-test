@@ -605,8 +605,8 @@ function pushHistory(type, data) {
     if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 }
 
-// Simple pin for admin access
-const ADMIN_PIN = '0620';
+// Simple pin for admin access (loaded from environment)
+const ADMIN_PIN = process.env.ADMIN_PIN;
 const adminUsers = new Set(); // store socket.ids of admins
 const adminAttempts = new Map(); // tracking failed attempts for kicks
 
