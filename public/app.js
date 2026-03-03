@@ -213,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isWindowActive = false;
     });
 
+
     function updateTitle() {
         if (unreadCount > 0) {
             document.title = `(${unreadCount}) munn.fun - Chat`;
@@ -742,7 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="w-8 h-8 shrink-0 rounded-full font-bold flex items-center justify-center text-xs shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-base' : 'bg-zinc-800 text-zinc-300'} mt-0.5 relative overflow-hidden">
                     ${avatarContent}
                 </div>
-                <div class="flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                <div class="min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}" style="max-width: min(85%, 560px);">
                     <div class="flex items-center gap-1.5 mb-0.5 ${isMe ? 'flex-row-reverse' : ''}">
                         <span class="font-semibold text-[12px] tracking-wide uppercase ${nameColorStr} flex items-center gap-1">
                             ${escapeHTML(msg.username)} 
@@ -751,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="text-[10px] font-mono text-zinc-600">${timeString}</span>
                         ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[9px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-600'}">REP: ${msg.score}</span>` : ''}
                     </div>
-                    <div class="inline-block text-[13.5px] leading-snug text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-3.5 py-2 text-white rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-3.5 py-2 text-zinc-100 rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-3.5 py-2.5 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-sm max-w-[90%]' : 'bg-zinc-800/70 border border-zinc-700/40 px-3.5 py-2 text-zinc-100 rounded-tl-sm shadow-sm'} font-normal" style="max-width: min(85%, 520px); word-break: break-word;">
+                    <div class="text-[13.5px] leading-snug text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-3 py-1.5 text-white rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-3 py-1.5 text-zinc-100 rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-3 py-2 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-3 py-1.5 text-zinc-100 rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
                         ${escapeHTML(msg.text)}
                     </div>
                     
@@ -894,10 +895,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-Login Check
     const savedToken = localStorage.getItem('chat_token');
     if (savedToken) {
-        // Assume valid for a moment, hide modal visually to prevent flicker
-        entryModal.classList.add('opacity-0', 'hidden');
-        entryModal.classList.remove('flex');
-        connectSocket(savedToken);
+        try {
+            const base64Url = savedToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(atob(base64));
+            // Check if token is expired
+            if (payload.exp * 1000 > Date.now()) {
+                myUsername = payload.username;
+                isAdmin = payload.role === 'mod';
+                entryModal.classList.add('opacity-0', 'hidden');
+                entryModal.classList.remove('flex');
+                connectSocket(savedToken);
+            } else {
+                localStorage.removeItem('chat_token');
+                fetchPreviousUsersStatus();
+            }
+        } catch (e) {
+            localStorage.removeItem('chat_token');
+            fetchPreviousUsersStatus();
+        }
     } else {
         // No token, ensure we fetch previous statuses
         fetchPreviousUsersStatus();
