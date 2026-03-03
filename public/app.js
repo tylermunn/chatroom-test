@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Admin DOM Elements
     const adminTrigger = document.getElementById('admin-trigger');
     const adminPanel = document.getElementById('admin-panel');
+    const pauseBtn = document.getElementById('pause-btn');
     const purgeBtn = document.getElementById('purge-btn');
 
     // Snow AI DOM Elements
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isAdmin = false;
     let isGuest = false;
     let myAvatarData = null; // base64 avatar
+    let isChatPaused = false;
 
     // Hidden file input for avatar upload
     const avatarFileInput = document.createElement('input');
@@ -246,6 +248,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (confirm("Open Admin Dashboard?")) {
                     window.location.href = '/admin.html';
                 }
+            }
+        });
+    }
+
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            if (isAdmin) {
+                socket.emit('admin_toggle_pause');
             }
         });
     }
@@ -756,6 +766,50 @@ document.addEventListener('DOMContentLoaded', () => {
             if (liveTickerText) {
                 const updateStr = `[ REPUTATION UPDATE ] *** [ USER: ${data.username.toUpperCase()} ] *** [ NEW SCORE: ${data.reputation} ] *** `;
                 liveTickerText.textContent = updateStr + liveTickerText.textContent;
+            }
+        });
+
+        socket.on('chat_paused_status', (isPaused) => {
+            isChatPaused = isPaused;
+            const dmInput = document.getElementById('dm-input');
+            if (isAdmin) {
+                if (pauseBtn) {
+                    if (isChatPaused) {
+                        pauseBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Resume`;
+                        pauseBtn.classList.replace('text-amber-500', 'text-emerald-500');
+                        pauseBtn.classList.replace('bg-amber-500/10', 'bg-emerald-500/10');
+                        if (pauseBtn.classList.contains('border-amber-500/20')) pauseBtn.classList.replace('border-amber-500/20', 'border-emerald-500/20');
+                    } else {
+                        pauseBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Pause`;
+                        pauseBtn.classList.replace('text-emerald-500', 'text-amber-500');
+                        pauseBtn.classList.replace('bg-emerald-500/10', 'bg-amber-500/10');
+                        if (pauseBtn.classList.contains('border-emerald-500/20')) pauseBtn.classList.replace('border-emerald-500/20', 'border-amber-500/20');
+                    }
+                }
+            } else {
+                if (isChatPaused) {
+                    if (messageInput) {
+                        messageInput.disabled = true;
+                        messageInput.placeholder = "Network traffic is currently paused by admin...";
+                        messageInput.classList.add('opacity-50', 'cursor-not-allowed', 'bg-zinc-800');
+                    }
+                    if (dmInput) {
+                        dmInput.disabled = true;
+                        dmInput.placeholder = "Network traffic is currently paused by admin...";
+                        dmInput.classList.add('opacity-50', 'cursor-not-allowed', 'bg-zinc-800');
+                    }
+                } else {
+                    if (messageInput) {
+                        messageInput.disabled = false;
+                        messageInput.placeholder = "Type a message... (Use @gemini to talk to AI)";
+                        messageInput.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-zinc-800');
+                    }
+                    if (dmInput) {
+                        dmInput.disabled = false;
+                        dmInput.placeholder = "Message this user...";
+                        dmInput.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-zinc-800');
+                    }
+                }
             }
         });
 

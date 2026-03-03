@@ -609,6 +609,7 @@ function pushHistory(type, data) {
 const ADMIN_PIN = process.env.ADMIN_PIN;
 const adminUsers = new Set(); // store socket.ids of admins
 const adminAttempts = new Map(); // tracking failed attempts for kicks
+let isChatPaused = false; // Admin setting to pause all non-admin chatting
 
 // Build user roster for broadcasting
 function buildRoster() {
@@ -662,6 +663,9 @@ io.on('connection', (socket) => {
     if (socket.user.role === 'mod') {
         adminUsers.add(socket.id);
     }
+
+    // Emit initial pause status
+    socket.emit('chat_paused_status', isChatPaused);
 
     // Client explicitly joins
     socket.on('join_chat', () => {
@@ -773,6 +777,14 @@ io.on('connection', (socket) => {
         const text = data.text.trim();
         if (!text) return;
 
+        const isMod = adminUsers.has(socket.id);
+
+        if (isChatPaused && !isMod) {
+            const warnMsg = { msgId: Math.random().toString(36).substring(2, 11), conversationId: '', sender: 'Gemini', text: '⚠️ Network traffic is currently paused by the administrator.', timestamp: new Date().toISOString() };
+            socket.emit('receive_dm', warnMsg);
+            return;
+        }
+
         // Profanity filter for DMs
         if (containsProfanity(text)) {
             const warnMsg = { msgId: Math.random().toString(36).substring(2, 11), conversationId: '', sender: 'System', text: '⚠️ Message blocked by content filter. Keep it school-appropriate.', timestamp: new Date().toISOString() };
@@ -822,6 +834,20 @@ io.on('connection', (socket) => {
         if (userObj) {
             const isMod = adminUsers.has(socket.id);
             const text = msgData.text.trim();
+
+            if (isChatPaused && !isMod) {
+                const warnMsg = {
+                    msgId: Math.random().toString(36).substring(2, 11),
+                    username: 'Gemini',
+                    text: '⚠️ Network traffic is currently paused by the administrator.',
+                    timestamp: new Date().toISOString(),
+                    id: 'gemini_bot',
+                    isAdmin: false,
+                    isBot: true,
+                };
+                socket.emit('chat_message', warnMsg);
+                return;
+            }
 
             // ========== PROFANITY FILTER ==========
             if (containsProfanity(text)) {
@@ -1210,8 +1236,19 @@ io.on('connection', (socket) => {
 
     socket.on('admin_purge_all', () => {
         if (adminUsers.has(socket.id)) {
+            db.run('DELETE FROM chat_messages');
             messageHistory = [];
             io.emit('purge_all_messages');
+            io.emit('admin_announcement', { text: `⚠️ SYSTEM PURGE initiated by an Admin`, timestamp: new Date().toISOString() });
+        }
+    });
+
+    socket.on('admin_toggle_pause', () => {
+        if (adminUsers.has(socket.id)) {
+            isChatPaused = !isChatPaused;
+            io.emit('chat_paused_status', isChatPaused);
+            const actionText = isChatPaused ? 'PAUSED' : 'UNPAUSED';
+            io.emit('admin_announcement', { text: `⚠️ CHAT NETWORK ${actionText} by Admin`, timestamp: new Date().toISOString() });
         }
     });
     // ----------------------
