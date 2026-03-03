@@ -114,150 +114,182 @@
         </div>
 
         <!-- Terminal Content -->
-        <div class="p-8 font-mono text-sm md:text-base leading-relaxed text-zinc-300">
-            <div class="text-[#00ffcc]/80 ascii-art mb-8 font-bold text-xs md:text-sm">
-                _____ .___ ________
-                / _ \ | | / _____/
-                / /_\ \| |/ \ ___
-                / | \ |\ \_\ \
-                \____|__ /___| \______ /
-                \/ \/
-                _____ ____ __ _______ ____ _____ ____ ___ _______
-                / ___/ / __ `// ___/ _ \ / __ \ / ___// __ \__// ___/ _ \
-                / /__ / /_/ // / / __/ / /_/ / / /__ / /_/ / / / / __/
-                \___/ \__,_//_/ \___/ \____/ \___/ \____/ /_/ \___/
-
+        <div class="p-4 md:p-8 font-mono text-sm md:text-base leading-relaxed text-zinc-300 flex">
+            <!-- Left subtle edge decoration -->
+            <div
+                class="hidden md:flex flex-col text-[#00ffcc]/20 text-[10px] uppercase font-bold tracking-[0.3em] gap-1.5 mr-8 select-none border-r border-[#00ffcc]/10 pr-6 justify-between items-end">
+                <div class="flex flex-col gap-1 items-end pt-4">
+                    <span class="animate-pulse text-[#00ffcc]/40">* SYS</span>
+                    <span>0x00A2</span>
+                    <span class="animate-pulse" style="animation-delay: 0.2s">0x00B1</span>
+                    <span>0x00C4</span>
+                </div>
+                <div class="flex flex-col gap-1 items-end pb-4">
+                    <span class="animate-pulse text-indigo-400/30" style="animation-delay: 0.5s">x_NET</span>
+                    <span>0x01A3</span>
+                    <span class="animate-pulse text-red-500/30" style="animation-delay: 0.8s">! ERR</span>
+                    <span>0x02B9</span>
+                </div>
             </div>
 
-            <div class="text-center mb-8">
-                <h1 class="text-4xl font-black uppercase tracking-[0.2em] neon-text mb-4">munn.fun</h1>
+            <!-- Main Content Area -->
+            <div class="flex-1">
                 <div
-                    class="inline-block border border-[#00ffcc]/30 bg-[#00ffcc]/5 px-6 py-2 rounded text-[#00ffcc] font-bold tracking-widest text-xs mb-6">
-                    [ OFFLINE ]
+                    class="bg-[#050505] border border-zinc-800 rounded p-4 mb-8 font-mono text-xs md:text-sm shadow-inner relative overflow-hidden">
+                    <!-- Subtle inner glow -->
+                    <div class="absolute inset-0 bg-[#00ffcc]/5 opacity-50"></div>
+
+                    <div class="relative z-10 space-y-2">
+                        <p class="text-zinc-500">> <span class="text-[#00ffcc]">initiate sequence:</span>
+                            HALT_CORE_MODULES</p>
+                        <p class="text-zinc-500">> <span class="text-[#00ffcc]">closing active sockets:</span> SUCCESS
+                        </p>
+                        <p class="text-red-400/80">> <span class="text-red-500 font-bold">FATAL ERROR [0x8891]:</span>
+                            GLOBAL_ACCESS_REVOKED</p>
+                        <p class="text-zinc-500">> <span class="text-[#00ffcc]">dumping network traffic to:</span>
+                            /dev/null</p>
+                    </div>
                 </div>
 
-                <p class="text-zinc-500 mb-2 uppercase tracking-widest text-xs">Dates of Operation:</p>
-                <div class="text-indigo-400 font-bold tracking-widest">
-                    FEB 27, 2026 - MAR 03, 2026
-                </div>
-            </div>
+                <div class="text-center mb-8 relative">
+                    <!-- Abstract geometric decor around text -->
+                    <div
+                        class="absolute top-1/2 left-0 w-8 md:w-16 h-[1px] bg-gradient-to-r from-transparent to-[#00ffcc]/30 -translate-y-1/2">
+                    </div>
+                    <div
+                        class="absolute top-1/2 right-0 w-8 md:w-16 h-[1px] bg-gradient-to-l from-transparent to-[#00ffcc]/30 -translate-y-1/2">
+                    </div>
 
-            <div class="max-w-md mx-auto border-t border-zinc-800 pt-8 text-center text-zinc-400">
-                <p class="mb-4 text-emerald-300/80 italic font-medium">"Gone, but never forgotten."</p>
-                <div class="typing-effect mt-8 text-[#00ffcc] text-xs uppercase font-bold text-center inline-block">
-                    [ CONNECTION_TERMINATED ]
+                    <h1 class="text-4xl md:text-5xl font-black uppercase tracking-[0.2em] neon-text mb-4">munn.fun</h1>
+                    <div
+                        class="inline-block border border-[#00ffcc]/30 bg-[#00ffcc]/5 px-6 py-2 rounded text-[#00ffcc] font-bold tracking-widest text-xs mb-6">
+                        [ OFFLINE ]
+                    </div>
+
+                    <p class="text-zinc-500 mb-2 uppercase tracking-widest text-xs">Dates of Operation:</p>
+                    <div class="text-indigo-400 font-bold tracking-widest">
+                        FEB 27, 2026 - MAR 03, 2026
+                    </div>
                 </div>
+
+                <div class="max-w-md mx-auto border-t border-zinc-800 pt-8 text-center text-zinc-400">
+                    <p class="mb-4 text-emerald-300/80 italic font-medium">"Gone, but never forgotten."</p>
+                    <div class="typing-effect mt-8 text-[#00ffcc] text-xs uppercase font-bold text-center inline-block">
+                        [ CONNECTION_TERMINATED ]
+                    </div>
+                </div>
+            </div> <!-- CLOSE flex-1 -->
+        </div>
+
+        <!-- Hidden Auth Modal -->
+        <div id="auth-modal"
+            class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden items-center justify-center p-4">
+            <div class="terminal-panel max-w-sm w-full rounded-xl p-6 border-t-2 border-[#00ffcc]/50">
+                <h2 class="text-[#00ffcc] text-lg font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                    System Override
+                </h2>
+                <p class="text-xs text-zinc-500 mb-6 font-mono leading-relaxed">Enter administrator credentials to
+                    bypass
+                    the network lock.</p>
+
+                <div id="auth-error"
+                    class="hidden text-red-500 text-xs font-bold bg-red-500/10 border border-red-500/20 p-3 rounded mb-4 text-center">
+                </div>
+
+                <form id="auth-form" class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Username</label>
+                        <input type="text" id="username"
+                            class="w-full bg-[#0a0a0c] border border-zinc-800 rounded p-2 text-white font-mono text-sm focus:border-[#00ffcc] focus:outline-none transition-colors"
+                            autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Passphrase</label>
+                        <input type="password" id="password"
+                            class="w-full bg-[#0a0a0c] border border-zinc-800 rounded p-2 text-white font-mono text-sm focus:border-[#00ffcc] focus:outline-none transition-colors">
+                    </div>
+                    <button type="submit" id="submit-btn"
+                        class="w-full bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 border border-[#00ffcc]/30 hover:border-[#00ffcc]/50 text-[#00ffcc] uppercase tracking-widest font-bold text-xs py-3 rounded transition-all mt-6">
+                        Initiate Bypass
+                    </button>
+                </form>
+                <button id="close-modal"
+                    class="w-full text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest mt-4">Cancel</button>
             </div>
         </div>
-    </div>
 
-    <!-- Hidden Auth Modal -->
-    <div id="auth-modal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="terminal-panel max-w-sm w-full rounded-xl p-6 border-t-2 border-[#00ffcc]/50">
-            <h2 class="text-[#00ffcc] text-lg font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                    </path>
-                </svg>
-                System Override
-            </h2>
-            <p class="text-xs text-zinc-500 mb-6 font-mono leading-relaxed">Enter administrator credentials to bypass
-                the network lock.</p>
+        <script>
+            const bypassLink = document.getElementById('admin-login-btn');
+            const modal = document.getElementById('auth-modal');
+            const closeBtn = document.getElementById('close-modal');
+            const form = document.getElementById('auth-form');
+            const errorEl = document.getElementById('auth-error');
 
-            <div id="auth-error"
-                class="hidden text-red-500 text-xs font-bold bg-red-500/10 border border-red-500/20 p-3 rounded mb-4 text-center">
-            </div>
+            bypassLink.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.getElementById('username').focus();
+            });
 
-            <form id="auth-form" class="space-y-4">
-                <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Username</label>
-                    <input type="text" id="username"
-                        class="w-full bg-[#0a0a0c] border border-zinc-800 rounded p-2 text-white font-mono text-sm focus:border-[#00ffcc] focus:outline-none transition-colors"
-                        autocomplete="off">
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Passphrase</label>
-                    <input type="password" id="password"
-                        class="w-full bg-[#0a0a0c] border border-zinc-800 rounded p-2 text-white font-mono text-sm focus:border-[#00ffcc] focus:outline-none transition-colors">
-                </div>
-                <button type="submit" id="submit-btn"
-                    class="w-full bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 border border-[#00ffcc]/30 hover:border-[#00ffcc]/50 text-[#00ffcc] uppercase tracking-widest font-bold text-xs py-3 rounded transition-all mt-6">
-                    Initiate Bypass
-                </button>
-            </form>
-            <button id="close-modal"
-                class="w-full text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest mt-4">Cancel</button>
-        </div>
-    </div>
+            closeBtn.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                errorEl.classList.add('hidden');
+            });
 
-    <script>
-        const bypassLink = document.getElementById('admin-login-btn');
-        const modal = document.getElementById('auth-modal');
-        const closeBtn = document.getElementById('close-modal');
-        const form = document.getElementById('auth-form');
-        const errorEl = document.getElementById('auth-error');
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+                const btn = document.getElementById('submit-btn');
 
-        bypassLink.addEventListener('click', () => {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.getElementById('username').focus();
-        });
+                if (!username || !password) return;
 
-        closeBtn.addEventListener('click', () => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            errorEl.classList.add('hidden');
-        });
+                btn.textContent = '...VERIFYING...';
+                btn.disabled = true;
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const btn = document.getElementById('submit-btn');
+                try {
+                    const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
 
-            if (!username || !password) return;
+                    const data = await res.json();
 
-            btn.textContent = '...VERIFYING...';
-            btn.disabled = true;
+                    if (!res.ok) {
+                        errorEl.textContent = 'ACCESS DENIED';
+                        errorEl.classList.remove('hidden');
+                        btn.textContent = 'Initiate Bypass';
+                        btn.disabled = false;
+                        return;
+                    }
 
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
+                    // Store bypass token and redirect to actual app selection page
+                    sessionStorage.setItem('token', data.token);
+                    sessionStorage.setItem('username', data.user.username);
+                    sessionStorage.setItem('bypass_active', 'true');
 
-                const data = await res.json();
+                    window.location.href = '/dashboard.html';
 
-                if (!res.ok) {
-                    errorEl.textContent = 'ACCESS DENIED';
+                } catch (err) {
+                    errorEl.textContent = 'COULD NOT REACH SERVER';
                     errorEl.classList.remove('hidden');
                     btn.textContent = 'Initiate Bypass';
                     btn.disabled = false;
-                    return;
                 }
+            });
 
-                // Store bypass token and redirect to actual app selection page
-                sessionStorage.setItem('token', data.token);
-                sessionStorage.setItem('username', data.user.username);
-                sessionStorage.setItem('bypass_active', 'true');
-
+            // If trying to access index but already bypassed in session, send to dashboard
+            if (sessionStorage.getItem('bypass_active') === 'true' && sessionStorage.getItem('token')) {
                 window.location.href = '/dashboard.html';
-
-            } catch (err) {
-                errorEl.textContent = 'COULD NOT REACH SERVER';
-                errorEl.classList.remove('hidden');
-                btn.textContent = 'Initiate Bypass';
-                btn.disabled = false;
             }
-        });
-
-        // If trying to access index but already bypassed in session, send to dashboard
-        if (sessionStorage.getItem('bypass_active') === 'true' && sessionStorage.getItem('token')) {
-            window.location.href = '/dashboard.html';
-        }
-    </script>
+        </script>
 </body>
 
 </html>
