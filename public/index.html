@@ -80,28 +80,10 @@
             }
         }
 
-        @keyframes floatUp {
-            0% {
-                transform: translateY(110vh) translateX(0);
-                opacity: 0;
-            }
-
-            10% {
-                opacity: 0.15;
-            }
-
-            90% {
-                opacity: 0.15;
-            }
-
-            100% {
-                transform: translateY(-10vh) translateX(20px);
-                opacity: 0;
-            }
-        }
-
         .floating-name {
             position: fixed;
+            top: 0;
+            left: 0;
             color: #00ffcc;
             font-size: 0.75rem;
             font-weight: bold;
@@ -110,6 +92,8 @@
             pointer-events: none;
             z-index: 5;
             text-transform: uppercase;
+            will-change: transform, opacity;
+            transition: opacity 2s ease-in;
         }
     </style>
 </head>
@@ -349,7 +333,7 @@
             // Initial delay before typing begins
             setTimeout(typeCmd, 1200);
 
-            // Floating Historical Users Memorial
+            // Floating Historical Users Memorial (Bouncing XP Style)
             const historicalUsers = [
                 "MIXT@PE", "VIMARAV", "THE CRUZ SHIP", "XANDIESEL",
                 "WIRD_ANIMATIONS", "EMU55B!", "PRESTO_MVM", "MR CHEESE",
@@ -357,27 +341,73 @@
                 "WUEEN", "CONNOR"
             ];
 
-            function createFloatingName() {
-                const el = document.createElement('div');
-                el.className = 'floating-name';
-                el.textContent = historicalUsers[Math.floor(Math.random() * historicalUsers.length)];
+            const entities = [];
 
-                const isLeft = Math.random() > 0.5;
-                const xPos = isLeft ? (Math.random() * 20) : (75 + Math.random() * 20);
-                el.style.left = `${xPos}vw`;
+            function spawnNames() {
+                historicalUsers.forEach((name, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'floating-name';
+                    el.textContent = name;
+                    document.body.appendChild(el);
 
-                const duration = 20 + Math.random() * 25;
-                el.style.animation = `floatUp ${duration}s linear forwards`;
+                    // Fade in sequentially
+                    setTimeout(() => {
+                        el.style.opacity = '0.15';
+                        const rect = el.getBoundingClientRect();
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 0.4 + Math.random() * 0.6; // slow ambient drift
 
-                document.body.appendChild(el);
+                        // Ensure random distribution
+                        const startX = Math.random() * (window.innerWidth - rect.width);
+                        const startY = Math.random() * (window.innerHeight - rect.height);
 
-                setTimeout(() => el.remove(), duration * 1000);
+                        // Set initial pos so it doesn't flash at 0,0
+                        el.style.transform = `translate(${startX}px, ${startY}px)`;
+
+                        entities.push({
+                            el,
+                            w: rect.width,
+                            h: rect.height,
+                            x: startX,
+                            y: startY,
+                            dx: Math.cos(angle) * speed,
+                            dy: Math.sin(angle) * speed
+                        });
+                    }, i * 400 + Math.random() * 2000);
+                });
             }
 
-            setInterval(createFloatingName, 2000);
-            for (let i = 0; i < 12; i++) {
-                setTimeout(createFloatingName, Math.random() * 15000);
+            function animate() {
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+
+                entities.forEach(ent => {
+                    ent.x += ent.dx;
+                    ent.y += ent.dy;
+
+                    if (ent.x <= 0) {
+                        ent.x = 0;
+                        ent.dx *= -1;
+                    } else if (ent.x + ent.w >= winW) {
+                        ent.x = winW - ent.w;
+                        ent.dx *= -1;
+                    }
+
+                    if (ent.y <= 0) {
+                        ent.y = 0;
+                        ent.dy *= -1;
+                    } else if (ent.y + ent.h >= winH) {
+                        ent.y = winH - ent.h;
+                        ent.dy *= -1;
+                    }
+
+                    ent.el.style.transform = `translate(${ent.x}px, ${ent.y}px)`;
+                });
+                requestAnimationFrame(animate);
             }
+
+            spawnNames();
+            requestAnimationFrame(animate);
         </script>
 </body>
 
