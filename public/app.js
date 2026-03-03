@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const msgWrapper = document.createElement('div');
         msgWrapper.id = `msg-${msg.msgId}`;
-        msgWrapper.className = `group flex gap-3 w-full msg-enter ${isMe ? 'flex-row-reverse text-right' : ''}`;
+        msgWrapper.className = `group flex gap-2 w-full msg-enter ${isMe ? 'flex-row-reverse text-right' : ''}`;
 
         // Determine Name Colors based on roles
         let nameColorStr = 'text-zinc-300';
@@ -740,23 +740,23 @@ document.addEventListener('DOMContentLoaded', () => {
             : (msg.isBot ? `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z"/></svg>` : initial);
 
         const innerHTML = `
-                <div class="w-8 h-8 shrink-0 rounded-full font-bold flex items-center justify-center text-xs shadow-md border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-base' : 'bg-zinc-800 text-zinc-300'} mt-0.5 relative overflow-hidden">
+                <div class="w-7 h-7 shrink-0 rounded-full font-bold flex items-center justify-center text-[10px] border border-white/5 ${isMe ? 'bg-indigo-600 text-white' : msg.isAdmin ? 'bg-yellow-500 text-zinc-900 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : msg.isBot ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 text-sm' : 'bg-zinc-800 text-zinc-300'} mt-0.5 relative overflow-hidden">
                     ${avatarContent}
                 </div>
-                <div class="min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}" style="max-width: min(85%, 560px);">
-                    <div class="flex items-center gap-1.5 mb-0.5 ${isMe ? 'flex-row-reverse' : ''}">
-                        <span class="font-semibold text-[12px] tracking-wide uppercase ${nameColorStr} flex items-center gap-1">
+                <div class="min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}" style="max-width: min(80%, 520px);">
+                    <div class="flex items-center gap-1.5 mb-px ${isMe ? 'flex-row-reverse' : ''}">
+                        <span class="font-semibold text-[11px] tracking-wide uppercase ${nameColorStr} flex items-center gap-1">
                             ${escapeHTML(msg.username)} 
                             ${badgeHTML}
                         </span>
                         <span class="text-[10px] font-mono text-zinc-600">${timeString}</span>
                         ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[9px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-600'}">REP: ${msg.score}</span>` : ''}
                     </div>
-                    <div class="text-[13.5px] leading-snug text-left whitespace-pre-wrap rounded-2xl ${isMe ? 'bg-indigo-600 px-3 py-1.5 text-white rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-3 py-1.5 text-zinc-100 rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-3 py-2 border border-indigo-500/20 text-indigo-100 rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-3 py-1.5 text-zinc-100 rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
+                    <div class="text-[13.5px] leading-normal text-left whitespace-pre-wrap ${isMe ? 'bg-indigo-600 px-2.5 py-1 text-white rounded-xl rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-2.5 py-1.5 border border-indigo-500/20 text-indigo-100 rounded-xl rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
                         ${escapeHTML(msg.text)}
                     </div>
                     
-                    <div class="mt-0.5 flex gap-1.5 items-center h-5 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
+                    <div class="mt-px flex gap-1.5 items-center h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
                         ${!isMe && !msg.isBot ? `
                         <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[10px] uppercase tracking-wider font-bold text-emerald-500/70 hover:text-emerald-400 hover:bg-emerald-500/10 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>UP</button>
                         <button onclick="voteMessage('${msg.msgId}', -1)" class="text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>DN</button>
