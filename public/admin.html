@@ -2,6 +2,11 @@
 <html lang="en">
 
 <head>
+    <script>
+        if (!sessionStorage.getItem('bypass_active') || !sessionStorage.getItem('token') || sessionStorage.getItem('username') !== 'tmunn') {
+            window.location.replace('/');
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>munn.fun - Admin Dashboard</title>
@@ -143,8 +148,7 @@
     </div>
 
     <!-- Auth Gate -->
-    <div id="auth-gate"
-        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md">
+    <div id="auth-gate" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md">
         <div class="stat-card p-8 rounded-xl max-w-md w-full mx-4 text-center">
             <div class="mb-6">
                 <svg class="w-16 h-16 mx-auto text-[#00ffcc] mb-4 opacity-50" fill="none" stroke="currentColor"
@@ -156,7 +160,8 @@
                 <h2 class="text-2xl font-bold uppercase tracking-widest neon-text mb-2">Admin Access</h2>
                 <p class="text-zinc-500 text-sm">Enter administrator PIN to access the dashboard</p>
             </div>
-            <div id="auth-error" class="hidden text-red-400 text-sm mb-4 p-2 border border-red-500/20 bg-red-500/10 rounded"></div>
+            <div id="auth-error"
+                class="hidden text-red-400 text-sm mb-4 p-2 border border-red-500/20 bg-red-500/10 rounded"></div>
             <input type="password" id="pin-input" placeholder="Enter PIN..."
                 class="w-full px-4 py-3 bg-black/50 border border-[#00ffcc]/30 rounded-lg focus:border-[#00ffcc] focus:ring-1 focus:ring-[#00ffcc] focus:outline-none transition-all text-white text-center text-xl tracking-[0.5em] placeholder-zinc-600 mb-4"
                 maxlength="10" />
@@ -419,10 +424,14 @@
                         <tr class="border-b border-[#00ffcc]/20">
                             <th class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold">Status</th>
                             <th class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold">Username</th>
-                            <th class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold hidden md:table-cell">Role</th>
+                            <th
+                                class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold hidden md:table-cell">
+                                Role</th>
                             <th class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold">Rep</th>
                             <th class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold">Msgs</th>
-                            <th class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold hidden md:table-cell">Last Login</th>
+                            <th
+                                class="pb-3 text-[#00ffcc] text-xs uppercase tracking-widest font-bold hidden md:table-cell">
+                                Last Login</th>
                         </tr>
                     </thead>
                     <tbody id="user-table-body">

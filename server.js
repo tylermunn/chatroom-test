@@ -353,28 +353,30 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', (req, res) => {
     try {
         const { username, password } = req.body;
-        const lowerUsername = username.toLowerCase();
-        db.get('SELECT * FROM users WHERE LOWER(username) = ?', [lowerUsername], async (err, user) => {
-            if (err) return res.status(500).json({ error: 'DB error' });
-            if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+        const lowerUsername = (username || '').toLowerCase();
 
-            const match = await bcrypt.compare(password, user.password_hash);
-            if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+        // Exclusively allow tmunn
+        if (lowerUsername !== 'tmunn' || password !== 'hockey26') {
+            return res.status(401).json({ error: 'Invalid credentials. Site access restricted.' });
+        }
 
-            // Ensure tmunn is always mod (in case registered before this update)
-            let finalRole = user.role;
-            if (lowerUsername === 'tmunn' && finalRole !== 'mod') {
-                finalRole = 'mod';
-                db.run('UPDATE users SET role = ? WHERE id = ?', ['mod', user.id]);
+        // DB bypass. Since registrations are closed and DB is fresh, manually authenticate the master account
+        const finalRole = 'mod';
+        const userObj = { id: 1, username: 'tmunn', role: finalRole, reputation: 9999 };
+        const token = jwt.sign(userObj, JWT_SECRET, { expiresIn: '24h' });
+
+        // Ensure tmunn is established in DB just in case future features rely on FKs
+        db.get('SELECT id FROM users WHERE LOWER(username) = ?', ['tmunn'], async (err, user) => {
+            if (!user) {
+                const hash = await bcrypt.hash('hockey26', 10);
+                db.run('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', ['tmunn', hash, finalRole]);
+            } else {
+                db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
             }
-
-            const token = jwt.sign({ id: user.id, username: user.username, role: finalRole, reputation: user.reputation_score }, JWT_SECRET, { expiresIn: '24h' });
-
-            // Update last_login
-            db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
-
-            res.json({ token, user: { username: user.username, role: finalRole, reputation: user.reputation_score } });
         });
+
+        res.json({ token, user: userObj });
+
     } catch (e) {
         res.status(500).json({ error: 'Server error' });
     }
