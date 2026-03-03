@@ -537,64 +537,202 @@ io.on('connection', (socket) => {
 
         // Send chat history to the newly joined user
         socket.emit('chat_history', messageHistory);
+
+        // Gemini welcome message (sent only to the new user, after a short delay)
+        setTimeout(() => {
+            const welcomeMsg = {
+                msgId: Math.random().toString(36).substring(2, 11),
+                username: 'Gemini',
+                text: `👋 Welcome to munn.fun, ${username}!\n\n` +
+                    `Here's how to get started:\n` +
+                    `💬 Just type to chat with everyone online\n` +
+                    `😊 Use the emoji & GIF buttons to spice things up\n` +
+                    `🤖 Mention @gemini to ask me anything\n` +
+                    `❤️ Hover over messages to like them\n\n` +
+                    `Type !help to see all commands. Have fun! ⚡`,
+                timestamp: new Date().toISOString(),
+                id: 'gemini_bot',
+                isAdmin: false,
+                isBot: true,
+            };
+            socket.emit('chat_message', welcomeMsg);
+        }, 2000);
     });
 
     socket.on('chat_message', (msgData) => {
         const userObj = activeUsers.get(socket.id);
         if (userObj) {
             const isMod = adminUsers.has(socket.id);
+            const text = msgData.text.trim();
 
-            // Check for Commands First
-            if (msgData.text.startsWith('/')) {
-                const parts = msgData.text.split(' ');
-                const command = parts[0].toLowerCase();
+            // ========== COMMAND SYSTEM (!commands and /commands) ==========
+            if (text.startsWith('!') || text.startsWith('/')) {
+                const parts = text.split(' ');
+                const command = parts[0].toLowerCase().replace(/^[!/]/, '');
 
-                if (command === '/roll') {
-                    const max = parseInt(parts[1]) || 100;
-                    const roll = Math.floor(Math.random() * max) + 1;
-                    const sysMsg = {
-                        text: `🎲 ${userObj.username} rolled a ${roll} (1-${max}).`,
-                        timestamp: new Date().toISOString()
+                // Helper to send a bot response only to the sender
+                function sendBotReply(replyText) {
+                    const botMsg = {
+                        msgId: Math.random().toString(36).substring(2, 11),
+                        username: 'Gemini',
+                        text: replyText,
+                        timestamp: new Date().toISOString(),
+                        id: 'gemini_bot',
+                        isAdmin: false,
+                        isBot: true,
                     };
+                    socket.emit('chat_message', botMsg);
+                }
+
+                // Helper to send a system message to everyone
+                function sendSystem(sysText) {
+                    const sysMsg = { text: sysText, timestamp: new Date().toISOString() };
                     io.emit('system_message', sysMsg);
                     pushHistory('system', sysMsg);
-                    return;
-                } else if (command === '/leaderboard') {
-                    db.all('SELECT username, reputation_score FROM users ORDER BY reputation_score DESC LIMIT 5', [], (err, rows) => {
-                        if (err || !rows) return;
-                        let text = '🏆 TOP NODES (REP):\n';
-                        rows.forEach((r, i) => text += `${i + 1}. ${r.username} [${r.reputation_score}]\n`);
-                        const sysMsg = { text, timestamp: new Date().toISOString() };
-                        io.emit('system_message', sysMsg);
-                        pushHistory('system', sysMsg);
-                    });
-                    return;
-                } else if (isMod) {
-                    if (command === '/clear') {
-                        messageHistory = [];
-                        io.emit('purge_all_messages');
+                }
+
+                switch (command) {
+                    case 'help':
+                    case 'commands':
+                        sendBotReply(
+                            `👋 Hey ${userObj.username}! Here are the available commands:\n\n` +
+                            `📋 GENERAL:\n` +
+                            `  !help — Show this command list\n` +
+                            `  !about — Learn about munn.fun\n` +
+                            `  !rules — View the chat rules\n` +
+                            `  !stats — See your personal stats\n` +
+                            `  !leaderboard — Top liked users\n\n` +
+                            `🎮 FUN:\n` +
+                            `  !roll [max] — Roll a die (default 1-100)\n` +
+                            `  !flip — Flip a coin\n` +
+                            `  !8ball [question] — Ask the magic 8-ball\n\n` +
+                            `🤖 AI:\n` +
+                            `  @gemini [question] — Ask the AI anything\n\n` +
+                            `💡 TIP: Visit munn.fun/updates.html to explore the source code!`
+                        );
                         return;
-                    } else if (command === '/kick' && parts[1]) {
-                        const targetName = parts[1];
-                        let targetSocketId = null;
-                        for (const [id, u] of activeUsers.entries()) {
-                            if (u.username.toLowerCase() === targetName.toLowerCase()) {
-                                targetSocketId = id; break;
+
+                    case 'about':
+                        sendBotReply(
+                            `⚡ MUNN.FUN — Real-Time Chat Platform\n\n` +
+                            `Built by Mr. Munn as a learning project for his students at Syracuse Latin.\n\n` +
+                            `🧱 Tech Stack: Node.js, Express, Socket.io, SQLite3, Google Gemini AI\n` +
+                            `☁️ Hosted on Fly.io (Secaucus, NJ) with persistent storage\n` +
+                            `🌐 Domain: munn.fun via Namecheap\n\n` +
+                            `📋 Visit munn.fun/updates.html for the full changelog, source code browser, and tech stack breakdown!`
+                        );
+                        return;
+
+                    case 'rules':
+                        sendBotReply(
+                            `📜 CHAT RULES:\n\n` +
+                            `1. Be respectful to everyone\n` +
+                            `2. No spam or message flooding\n` +
+                            `3. No inappropriate content\n` +
+                            `4. No impersonation or fake accounts\n` +
+                            `5. Keep it school-appropriate\n` +
+                            `6. Have fun and be cool 😎\n\n` +
+                            `⚠️ Violations may result in a kick or account action by admins.`
+                        );
+                        return;
+
+                    case 'stats':
+                        db.get('SELECT reputation_score FROM users WHERE LOWER(username) = LOWER(?)', [userObj.username], (err, row) => {
+                            db.get('SELECT count FROM message_counts WHERE username = ?', [userObj.username], (err2, countRow) => {
+                                const rep = row ? row.reputation_score : 0;
+                                const msgs = countRow ? countRow.count : 0;
+                                sendBotReply(
+                                    `📊 Stats for ${userObj.username}:\n\n` +
+                                    `❤️ Likes received: ${rep}\n` +
+                                    `💬 Messages sent: ${msgs}\n` +
+                                    `🔐 Account type: ${userObj.isGuest ? 'Guest' : 'Registered'}\n` +
+                                    `${isMod ? '⭐ Role: Admin\n' : ''}` +
+                                    `🟢 Status: Online`
+                                );
+                            });
+                        });
+                        return;
+
+                    case 'leaderboard':
+                    case 'top':
+                        db.all('SELECT username, reputation_score FROM users ORDER BY reputation_score DESC LIMIT 10', [], (err, rows) => {
+                            if (err || !rows || rows.length === 0) {
+                                sendBotReply('No leaderboard data yet. Start liking messages!');
+                                return;
+                            }
+                            const medals = ['🥇', '🥈', '🥉'];
+                            let text = '🏆 MOST LIKED USERS:\n\n';
+                            rows.forEach((r, i) => {
+                                const medal = medals[i] || `${i + 1}.`;
+                                text += `${medal} ${r.username} — ❤️ ${r.reputation_score}\n`;
+                            });
+                            sendBotReply(text);
+                        });
+                        return;
+
+                    case 'roll':
+                        const max = parseInt(parts[1]) || 100;
+                        const roll = Math.floor(Math.random() * max) + 1;
+                        sendSystem(`🎲 ${userObj.username} rolled a ${roll} (1-${max})`);
+                        return;
+
+                    case 'flip':
+                    case 'coin':
+                        const coin = Math.random() < 0.5 ? 'HEADS 🪙' : 'TAILS 🪙';
+                        sendSystem(`🪙 ${userObj.username} flipped a coin: ${coin}`);
+                        return;
+
+                    case '8ball':
+                        const responses = [
+                            '🎱 It is certain.', '🎱 Without a doubt.', '🎱 Yes, definitely.',
+                            '🎱 You may rely on it.', '🎱 As I see it, yes.', '🎱 Most likely.',
+                            '🎱 Outlook good.', '🎱 Yes.', '🎱 Signs point to yes.',
+                            '🎱 Reply hazy, try again.', '🎱 Ask again later.', '🎱 Better not tell you now.',
+                            '🎱 Cannot predict now.', '🎱 Concentrate and ask again.',
+                            '🎱 Don\'t count on it.', '🎱 My reply is no.', '🎱 My sources say no.',
+                            '🎱 Outlook not so good.', '🎱 Very doubtful.'
+                        ];
+                        const answer = responses[Math.floor(Math.random() * responses.length)];
+                        sendSystem(`${userObj.username} asked the 8-ball: "${parts.slice(1).join(' ') || '...'}" → ${answer}`);
+                        return;
+
+                    // Admin-only commands
+                    case 'clear':
+                        if (isMod) {
+                            messageHistory = [];
+                            io.emit('purge_all_messages');
+                        }
+                        return;
+
+                    case 'kick':
+                        if (isMod && parts[1]) {
+                            const targetName = parts[1];
+                            let targetSocketId = null;
+                            for (const [id, u] of activeUsers.entries()) {
+                                if (u.username.toLowerCase() === targetName.toLowerCase()) {
+                                    targetSocketId = id; break;
+                                }
+                            }
+                            if (targetSocketId) {
+                                io.to(targetSocketId).emit('kicked_out');
+                                sendSystem(`⚠️ ${targetName} was kicked by ${userObj.username}.`);
+                                setTimeout(() => {
+                                    const targetSocket = io.sockets.sockets.get(targetSocketId);
+                                    if (targetSocket) targetSocket.disconnect();
+                                }, 500);
                             }
                         }
-                        if (targetSocketId) {
-                            io.to(targetSocketId).emit('kicked_out');
-                            const adminName = userObj.username;
-                            const sysMsg = { text: `SECURITY ALERT: ${targetName} was kicked by ${adminName}.`, timestamp: new Date().toISOString() };
-                            io.emit('system_message', sysMsg);
-                            pushHistory('system', sysMsg);
-                            setTimeout(() => {
-                                const targetSocket = io.sockets.sockets.get(targetSocketId);
-                                if (targetSocket) targetSocket.disconnect();
-                            }, 500);
+                        return;
+
+                    case 'announce':
+                        if (isMod && parts.slice(1).join(' ')) {
+                            io.emit('admin_announcement', parts.slice(1).join(' '));
                         }
                         return;
-                    }
+
+                    default:
+                        sendBotReply(`❓ Unknown command: !${command}\nType !help to see available commands.`);
+                        return;
                 }
             }
 
