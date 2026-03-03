@@ -4,57 +4,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>munn.fun - System Updates</title>
+    <title>munn.fun - System Updates & Source</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <style>
         body {
-            font-family: 'Share Tech Mono', monospace;
-            background-color: #050505;
-            color: #e5e5e5;
-            background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
+            font-family: 'Inter', sans-serif;
+            background-color: #09090b;
+            color: #e4e4e7;
         }
 
-        .glass-panel {
-            background: rgba(10, 10, 12, 0.8);
-            border: 1px solid rgba(0, 255, 204, 0.2);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
         }
 
-        .neon-text {
-            color: #00ffcc;
-            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        .glass {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
-        .scanlines {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.1));
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 50;
+        .glow-teal {
+            text-shadow: 0 0 12px rgba(45, 212, 191, 0.5);
+        }
+
+        /* Code viewer styles */
+        .code-viewer {
+            counter-reset: line;
+        }
+
+        .code-line {
+            counter-increment: line;
+        }
+
+        .code-line::before {
+            content: counter(line);
+            display: inline-block;
+            width: 3.5em;
+            text-align: right;
+            margin-right: 1.5em;
+            color: #3f3f46;
+            font-size: 12px;
+            user-select: none;
+            border-right: 1px solid #27272a;
+            padding-right: 1em;
+        }
+
+        .code-line:hover {
+            background: rgba(45, 212, 191, 0.04);
+        }
+
+        .code-line:hover::before {
+            color: #71717a;
+        }
+
+        /* Syntax highlighting */
+        .syn-keyword {
+            color: #c084fc;
+        }
+
+        .syn-string {
+            color: #86efac;
+        }
+
+        .syn-comment {
+            color: #52525b;
+            font-style: italic;
+        }
+
+        .syn-number {
+            color: #fbbf24;
+        }
+
+        .syn-func {
+            color: #60a5fa;
+        }
+
+        .syn-tag {
+            color: #f472b6;
+        }
+
+        .syn-attr {
+            color: #fb923c;
+        }
+
+        .tab-active {
+            border-color: #2dd4bf;
+            color: #2dd4bf;
+            background: rgba(45, 212, 191, 0.08);
+        }
+
+        .file-btn.active {
+            background: rgba(45, 212, 191, 0.1);
+            border-color: rgba(45, 212, 191, 0.3);
+            color: #2dd4bf;
+        }
+
+        .timeline-dot {
+            box-shadow: 0 0 0 4px #09090b, 0 0 0 6px rgba(45, 212, 191, 0.3);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
         }
     </style>
 </head>
 
-<body class="min-h-screen relative overflow-x-hidden">
-    <div class="scanlines"></div>
-    <div class="fixed inset-0 pointer-events-none z-0">
-        <div class="absolute top-[20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#00ffcc]/5 blur-[150px]"></div>
-        <div class="absolute bottom-[-10%] right-[10%] w-[30%] h-[30%] rounded-full bg-[#ff00a0]/5 blur-[150px]"></div>
-    </div>
-
+<body class="min-h-screen">
     <!-- Header -->
-    <header class="relative z-10 border-b border-[#00ffcc]/20 bg-[#050505]/90 backdrop-blur-md sticky top-0">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <header class="sticky top-0 z-50 border-b border-zinc-800 bg-[#09090b]/90 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <a href="/index.html" class="hover:bg-zinc-800 p-2 rounded-full transition-colors group mr-2"
-                    title="Go Home">
+                <a href="/index.html" class="hover:bg-zinc-800 p-2 rounded-lg transition-colors group" title="Home">
                     <svg class="w-5 h-5 text-zinc-400 group-hover:text-white" fill="none" stroke="currentColor"
                         viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -62,137 +139,612 @@
                         </path>
                     </svg>
                 </a>
-                <div
-                    class="w-8 h-8 flex items-center justify-center text-[#00ffcc] font-bold border border-[#00ffcc]/50 bg-[#00ffcc]/10 shadow-[0_0_10px_rgba(0,255,204,0.2)]">
-                    M.F</div>
-                <h1 class="font-bold text-xl tracking-widest text-zinc-100 uppercase uppercase neon-text">munn &middot;
-                    fun</h1>
+                <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <span class="font-bold text-lg tracking-widest text-zinc-100 uppercase">MUNN &middot; FUN</span>
+                <span class="hidden md:inline text-xs text-zinc-600 ml-2 mono">/ system-updates</span>
             </div>
-            <div class="flex items-center gap-4 text-[#00ffcc]/70">
-                <div id="nav-time" class="hidden md:block text-sm font-bold tracking-widest uppercase"></div>
-                <!-- Admin Settings Gear -->
-                <button id="admin-gear"
-                    class="hover:text-white hover:bg-zinc-800 p-2 rounded-full relative transition-colors text-[#00ffcc]/50 hover:text-[#00ffcc]"
-                    title="Admin Panel">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                </button>
-            </div>
+            <div id="nav-time" class="text-xs text-zinc-500 mono"></div>
         </div>
     </header>
 
-    <main class="relative z-10 max-w-5xl mx-auto px-6 py-12 flex flex-col gap-8">
-        <div class="text-center mb-8">
-            <h2 class="text-3xl md:text-5xl font-bold text-white tracking-widest mb-4 uppercase">SYSTEM <span
-                    class="neon-text">UPDATES</span></h2>
-            <p class="text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto">Developer changelog and repository
-                overview. View the source logic descriptions and recent pushes here without needing to access GitHub
-                directly.</p>
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 md:px-6 py-8">
+
+        <!-- Hero -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
+                System <span class="text-teal-400 glow-teal">Updates</span>
+            </h1>
+            <p class="text-zinc-400 max-w-2xl mx-auto text-[15px] leading-relaxed">
+                Live developer changelog, interactive source code browser, and full stack overview.
+                Since GitHub is blocked on school computers, this page gives you full access to explore
+                how munn.fun is built and how it evolves.
+            </p>
         </div>
 
-        <div class="glass-panel p-8 rounded-xl relative">
-            <h3 class="text-2xl font-bold text-white mb-4 uppercase tracking-widest border-b border-[#00ffcc]/30 pb-2">
-                Repository Location</h3>
-            <div
-                class="bg-black/50 border border-zinc-800 p-4 rounded text-[#00ffcc] font-mono text-sm mb-6 inline-block">
-                git clone https://github.com/tylermunn/chatroom-test.git
-            </div>
+        <!-- Tab Navigation -->
+        <div class="flex gap-1 mb-8 border-b border-zinc-800 overflow-x-auto">
+            <button onclick="showTab('changelog')" id="tab-changelog"
+                class="tab-btn px-5 py-3 text-sm font-bold tracking-wide uppercase border-b-2 transition-all tab-active whitespace-nowrap">
+                📋 Changelog
+            </button>
+            <button onclick="showTab('source')" id="tab-source"
+                class="tab-btn px-5 py-3 text-sm font-bold tracking-wide uppercase border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 transition-all whitespace-nowrap">
+                💻 Source Code
+            </button>
+            <button onclick="showTab('stack')" id="tab-stack"
+                class="tab-btn px-5 py-3 text-sm font-bold tracking-wide uppercase border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 transition-all whitespace-nowrap">
+                🧱 Tech Stack
+            </button>
+        </div>
 
-            <h3 class="text-2xl font-bold text-white mb-4 uppercase tracking-widest border-b border-[#00ffcc]/30 pb-2">
-                Source Files Overview</h3>
-            <p class="text-sm text-zinc-400 mb-6 font-bold text-[#00ffcc]">[ Gemini Assisted Description Generated ]</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-8">
-                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
-                    <span class="text-[#00ffcc] font-bold">server.js</span>
-                    <p class="text-zinc-400 mt-2">Node.js/Express backend handling HTTP routes, Socket.io for Real-Time
-                        chat, SQLite3 DB for persistent user state, and integrated Google Gemini generative AI API
-                        endpoints.</p>
-                </div>
-                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
-                    <span class="text-[#ff00a0] font-bold">public/app.js</span>
-                    <p class="text-zinc-400 mt-2">Client-side logic handling dynamic DOM updates, WebSockets event
-                        listeners, JSON Web Token checking in local storage for auto-login, and rendering live messaging
-                        UI elements.</p>
-                </div>
-                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
-                    <span class="text-yellow-400 font-bold">public/chat.html</span>
-                    <p class="text-zinc-400 mt-2">Main interface for the application with a dedicated dashboard, online
-                        user list (active PlayStation-style dots), chat window, scrolling ticker, and Gemini integration
-                        popup components.</p>
-                </div>
-                <div class="border border-zinc-800 bg-zinc-900/50 p-4 rounded transition hover:border-[#00ffcc]/50">
-                    <span class="text-indigo-400 font-bold">public/index.html & suggestions.html</span>
-                    <p class="text-zinc-400 mt-2">Supporting web pages presenting the site hub, link directories, and
-                        web forms to capture user feedback that is sent to the Node server and logged locally as JSON.
-                    </p>
-                </div>
-            </div>
+        <!-- ===================== CHANGELOG TAB ===================== -->
+        <div id="panel-changelog" class="tab-panel">
+            <div class="relative pl-8 border-l-2 border-zinc-800 space-y-10">
 
-            <h3 class="text-2xl font-bold text-white mb-4 uppercase tracking-widest border-b border-[#00ffcc]/30 pb-2">
-                Recent Push Requests</h3>
-            <div class="space-y-4">
-                <div class="border-l-2 border-[#00ffcc] pl-4">
-                    <div class="text-xs text-zinc-500 mb-1" id="latest-push-date">Loading date...</div>
-                    <div class="font-bold text-zinc-200 text-lg">fly.io Migration, Updates Page & munn &middot; fun
-                        Rebrand</div>
-                    <p class="text-zinc-400 text-sm mt-1">Transferred hosting layer from Render to fly.io environments.
-                        Restructured environment variables for Gemini integration (<span
-                            class="text-zinc-300 font-mono">GEMINI_API_KEY</span>) and Database routing (<span
-                            class="text-zinc-300 font-mono">DB_PATH</span>). Complete rebranding to remove local school
-                        identities (Syracuse Latin) and hacker jargon. Designed new user activity metrics with 'Online
-                        Now' pulsing indicators and exact login tracking. Built this dynamic Updates Page for student
-                        visibility.</p>
-                </div>
-                <div class="border-l-2 border-zinc-700 pl-4">
-                    <div class="text-xs text-zinc-500 mb-1">Previous Release</div>
-                    <div class="font-bold text-zinc-200 text-lg">Initial Generative AI Rollout & SQLite Integration
+                <!-- v3.3 -->
+                <div class="relative">
+                    <div class="absolute -left-[2.6rem] top-1 w-4 h-4 rounded-full bg-teal-400 timeline-dot"></div>
+                    <div class="glass p-6 rounded-xl">
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <span
+                                class="text-xs mono bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded-full border border-teal-500/20 font-bold">v3.3
+                                — LATEST</span>
+                            <span class="text-xs text-zinc-500 mono">March 3, 2026</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-3">Emoji Picker, GIF Search & Like System</h3>
+                        <div class="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                            <p><span class="text-teal-400 font-bold">😊 Emoji Picker:</span> Built a full emoji picker
+                                with 8 categorized tabs (Faces, Hands, Hearts, Animals, Food, Sports, Transport,
+                                Objects). Click the smiley face in the input bar to browse and insert emojis.</p>
+                            <p><span class="text-teal-400 font-bold">🎬 GIF Search:</span> Integrated the Tenor GIF API
+                                (Google's GIF service) with a live search panel. Click "GIF" in the input bar, search
+                                for anything, and click a GIF to send it inline in the chat. GIFs render as animated
+                                images directly in the conversation.</p>
+                            <p><span class="text-teal-400 font-bold">❤️ Like System:</span> Replaced the old
+                                upvote/downvote reputation system with a clean like-only system. Hover over any message
+                                to see a heart "Like" button. Like counts show as <span class="text-rose-400">❤️
+                                    N</span> next to the username. Hidden when zero for a clean look.</p>
+                        </div>
+                        <details class="mt-4">
+                            <summary
+                                class="cursor-pointer text-xs mono text-teal-400/70 hover:text-teal-400 transition-colors font-bold uppercase tracking-wider">
+                                🤖 Gemini-Assisted Breakdown</summary>
+                            <div
+                                class="mt-3 bg-black/30 border border-zinc-800 rounded-lg p-4 text-xs mono text-zinc-400 space-y-2">
+                                <p><span class="text-purple-400">// HOW GIF MESSAGES WORK:</span></p>
+                                <p>1. When you click a GIF, the client sends a chat message formatted as <span
+                                        class="text-green-400">[gif:https://url-to-gif]</span></p>
+                                <p>2. The <span class="text-blue-400">renderMessage()</span> function in app.js uses a
+                                    regex to detect this pattern</p>
+                                <p>3. If matched, it renders an <span class="text-pink-400">&lt;img&gt;</span> tag
+                                    instead of a text bubble</p>
+                                <p>4. The GIF search uses a <span class="text-blue-400">server-side proxy</span> at
+                                    /api/gifs to keep the API key secret</p>
+                                <p class="mt-2"><span class="text-purple-400">// HOW THE EMOJI PICKER WORKS:</span></p>
+                                <p>1. Emojis are stored in a JS object <span
+                                        class="text-blue-400">emojiCategories</span> — no API needed, pure client-side
+                                </p>
+                                <p>2. Each category key is the tab icon (e.g. 😊, 👋, ❤️)</p>
+                                <p>3. Clicking an emoji inserts it at the cursor position in the textarea</p>
+                            </div>
+                        </details>
                     </div>
-                    <p class="text-zinc-400 text-sm mt-1">Converted completely from memory arrays to persistent
-                        relational disk storage containing User Auth data and Reputation scores. Integrated direct
-                        conversational pathways to the `@gemini` generative AI for real-time query support in the global
-                        chat stream.</p>
+                </div>
+
+                <!-- v3.2 -->
+                <div class="relative">
+                    <div class="absolute -left-[2.6rem] top-1 w-4 h-4 rounded-full bg-indigo-400 timeline-dot"></div>
+                    <div class="glass p-6 rounded-xl">
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <span
+                                class="text-xs mono bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-500/20 font-bold">v3.2</span>
+                            <span class="text-xs text-zinc-500 mono">March 3, 2026</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-3">Dynamic Chat Bubbles & Auto-Login</h3>
+                        <div class="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                            <p><span class="text-indigo-400 font-bold">💬 Chat Bubble Polish:</span> Redesigned message
+                                bubbles to dynamically size based on content. Short messages like "Hi!" now show tight,
+                                compact bubbles instead of stretching across the screen. Uses CSS <span
+                                    class="mono text-zinc-300">width: fit-content</span> with a max-width cap.</p>
+                            <p><span class="text-indigo-400 font-bold">🔑 Auto-Login:</span> Added JWT token
+                                persistence. When you log in, your session is saved to localStorage. On page refresh,
+                                the app decodes the JWT, checks expiration, and auto-connects you without showing the
+                                login screen.</p>
+                        </div>
+                        <details class="mt-4">
+                            <summary
+                                class="cursor-pointer text-xs mono text-indigo-400/70 hover:text-indigo-400 transition-colors font-bold uppercase tracking-wider">
+                                🤖 Gemini-Assisted Breakdown</summary>
+                            <div
+                                class="mt-3 bg-black/30 border border-zinc-800 rounded-lg p-4 text-xs mono text-zinc-400 space-y-2">
+                                <p><span class="text-purple-400">// JWT AUTO-LOGIN FLOW:</span></p>
+                                <p>1. User logs in → server creates a <span class="text-blue-400">JWT</span> (JSON Web
+                                    Token) with username, role, expiration</p>
+                                <p>2. Token stored in <span class="text-green-400">localStorage.setItem('chat_token',
+                                        token)</span></p>
+                                <p>3. On page load → app reads token, decodes the Base64 payload</p>
+                                <p>4. Checks <span class="text-yellow-400">payload.exp * 1000 > Date.now()</span> → if
+                                    valid, skips login screen</p>
+                                <p>5. If expired or malformed → clears token, shows login modal</p>
+                                <p class="mt-2"><span class="text-purple-400">// FIT-CONTENT TRICK:</span></p>
+                                <p>CSS <span class="text-green-400">width: fit-content</span> makes a block element
+                                    shrink to its content width</p>
+                                <p>Combined with <span class="text-green-400">max-width: min(80%, 520px)</span> on the
+                                    parent to cap growth</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- v3.1 -->
+                <div class="relative">
+                    <div class="absolute -left-[2.6rem] top-1 w-4 h-4 rounded-full bg-amber-400 timeline-dot"></div>
+                    <div class="glass p-6 rounded-xl">
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <span
+                                class="text-xs mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20 font-bold">v3.1</span>
+                            <span class="text-xs text-zinc-500 mono">March 2, 2026</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-3">Fly.io Migration & munn.fun Domain</h3>
+                        <div class="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                            <p><span class="text-amber-400 font-bold">☁️ New Hosting:</span> Migrated from Render's free
+                                tier to Fly.io with a persistent 1GB SSD volume for the SQLite database. This means user
+                                accounts and chat history survive server restarts and redeployments.</p>
+                            <p><span class="text-amber-400 font-bold">🌐 Custom Domain:</span> Purchased munn.fun via
+                                Namecheap and configured DNS A records pointing to our Fly.io dedicated IPv4 address.
+                                SSL certificates auto-provisioned via Let's Encrypt.</p>
+                            <p><span class="text-amber-400 font-bold">🐳 Dockerized:</span> Added a Dockerfile so the
+                                application builds and deploys as a container image. Fly.io builds the Docker image
+                                remotely and deploys it to their edge network.</p>
+                        </div>
+                        <details class="mt-4">
+                            <summary
+                                class="cursor-pointer text-xs mono text-amber-400/70 hover:text-amber-400 transition-colors font-bold uppercase tracking-wider">
+                                🤖 Gemini-Assisted Breakdown</summary>
+                            <div
+                                class="mt-3 bg-black/30 border border-zinc-800 rounded-lg p-4 text-xs mono text-zinc-400 space-y-2">
+                                <p><span class="text-purple-400">// WHY FLY.IO OVER HEROKU/RENDER:</span></p>
+                                <p>Heroku and Render use <span class="text-red-400">ephemeral filesystems</span> — files
+                                    deleted on every restart</p>
+                                <p>Our app uses <span class="text-blue-400">SQLite</span> (a file-based database) →
+                                    needs permanent disk</p>
+                                <p>Fly.io supports <span class="text-green-400">persistent volumes</span> — a real SSD
+                                    mounted at /data</p>
+                                <p>Server reads DB_PATH env var: <span class="text-green-400">process.env.DB_PATH ||
+                                        './chat.db'</span></p>
+                                <p class="mt-2"><span class="text-purple-400">// DNS EXPLAINED:</span></p>
+                                <p>DNS = Domain Name System — translates "munn.fun" → IP address "66.241.125.192"</p>
+                                <p>We added an <span class="text-yellow-400">A Record</span> at Namecheap: @ →
+                                    66.241.125.192</p>
+                                <p>When you type munn.fun, your browser asks DNS for the IP, then connects to Fly.io</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- v3.0 -->
+                <div class="relative">
+                    <div class="absolute -left-[2.6rem] top-1 w-4 h-4 rounded-full bg-rose-400 timeline-dot"></div>
+                    <div class="glass p-6 rounded-xl">
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <span
+                                class="text-xs mono bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20 font-bold">v3.0</span>
+                            <span class="text-xs text-zinc-500 mono">February 27, 2026</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-3">munn.fun Rebrand & Admin Dashboard</h3>
+                        <div class="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                            <p><span class="text-rose-400 font-bold">🎨 Full Rebrand:</span> Complete visual overhaul
+                                from the old "Syracuse Latin" theme to the munn.fun identity. New login screen, new
+                                header, new color palette with indigo accents.</p>
+                            <p><span class="text-rose-400 font-bold">🛡️ Admin Panel:</span> Built a full admin
+                                dashboard (admin.html) with user management, message moderation tools, system
+                                announcements, and verification badge controls.</p>
+                            <p><span class="text-rose-400 font-bold">⌨️ Typing Indicators:</span> Real-time "User is
+                                typing..." indicators powered by Socket.io events.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- v2.0 -->
+                <div class="relative">
+                    <div class="absolute -left-[2.6rem] top-1 w-4 h-4 rounded-full bg-zinc-500 timeline-dot"></div>
+                    <div class="glass p-6 rounded-xl">
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <span
+                                class="text-xs mono bg-zinc-500/10 text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-500/20 font-bold">v2.0</span>
+                            <span class="text-xs text-zinc-500 mono">February 26-27, 2026</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-3">SQLite Auth, Gemini AI & Reputation System</h3>
+                        <div class="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                            <p><span class="text-zinc-300 font-bold">🗄️ Database:</span> Migrated from in-memory arrays
+                                to SQLite3 with persistent user accounts, bcrypt password hashing, and JWT-based
+                                authentication.</p>
+                            <p><span class="text-zinc-300 font-bold">🤖 AI Integration:</span> Integrated Google Gemini
+                                2.5 Flash as an in-chat AI assistant. Mention @gemini to ask questions. Also powers the
+                                Snow Day Predictor with real weather data.</p>
+                            <p><span class="text-zinc-300 font-bold">⭐ Reputation:</span> Added message voting system to
+                                track user reputation scores stored in the database.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- v1.0 -->
+                <div class="relative">
+                    <div class="absolute -left-[2.6rem] top-1 w-4 h-4 rounded-full bg-zinc-600 timeline-dot"></div>
+                    <div class="glass p-6 rounded-xl">
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <span
+                                class="text-xs mono bg-zinc-600/10 text-zinc-500 px-2 py-0.5 rounded-full border border-zinc-600/20 font-bold">v1.0</span>
+                            <span class="text-xs text-zinc-500 mono">February 26, 2026</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-3">Initial Launch — Real-Time Chat</h3>
+                        <div class="space-y-3 text-sm text-zinc-400 leading-relaxed">
+                            <p>First working prototype: Node.js + Express + Socket.io real-time chat with display name
+                                entry, message timestamps, active user roster, notification sounds, and responsive UI.
+                                Deployed on Render free tier.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== SOURCE CODE TAB ===================== -->
+        <div id="panel-source" class="tab-panel hidden">
+            <div class="flex flex-col lg:flex-row gap-4 h-[75vh]">
+                <!-- File Tree Sidebar -->
+                <div class="lg:w-64 shrink-0 glass rounded-xl p-4 overflow-y-auto">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">📁 Project Files</h3>
+                    <div id="file-tree" class="space-y-1">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="border-t border-zinc-800 mt-4 pt-4">
+                        <p class="text-[10px] text-zinc-600 mono leading-relaxed">
+                            Click any file to view its live source code. This is the actual code running on the server
+                            right now.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Code Viewer -->
+                <div class="flex-1 glass rounded-xl flex flex-col overflow-hidden min-w-0">
+                    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 shrink-0 bg-zinc-900/50">
+                        <div class="flex gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                        </div>
+                        <span id="code-filename" class="text-xs mono text-zinc-400 flex-1 truncate">Select a file to
+                            view...</span>
+                        <span id="code-lines" class="text-[10px] mono text-zinc-600"></span>
+                    </div>
+                    <div id="code-content"
+                        class="flex-1 overflow-auto p-4 text-[13px] mono leading-relaxed code-viewer">
+                        <div class="text-zinc-600 text-center py-20">
+                            <svg class="w-12 h-12 mx-auto mb-4 text-zinc-700" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                            </svg>
+                            <p class="text-sm">Click a file in the sidebar to browse the source code</p>
+                            <p class="text-xs mt-1 text-zinc-700">This is the live code running on the server</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== TECH STACK TAB ===================== -->
+        <div id="panel-stack" class="tab-panel hidden">
+
+            <!-- Architecture Diagram -->
+            <div class="glass rounded-xl p-6 md:p-8 mb-8">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span class="text-teal-400">⚡</span> How munn.fun Works
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-8">
+                    <div class="border border-indigo-500/20 bg-indigo-500/5 rounded-xl p-5">
+                        <div class="text-3xl mb-2">🖥️</div>
+                        <h4 class="font-bold text-indigo-400 text-sm uppercase tracking-wider mb-2">Your Browser</h4>
+                        <p class="text-xs text-zinc-400">HTML + CSS + JavaScript</p>
+                        <p class="text-xs text-zinc-500 mt-1">Renders the UI, handles clicks, sends/receives messages
+                            via WebSocket</p>
+                    </div>
+                    <div class="border border-teal-500/20 bg-teal-500/5 rounded-xl p-5 relative">
+                        <div
+                            class="hidden md:block absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 text-zinc-600">
+                            ⟵ ⟶</div>
+                        <div
+                            class="hidden md:block absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 text-zinc-600">
+                            ⟵ ⟶</div>
+                        <div class="text-3xl mb-2">⚙️</div>
+                        <h4 class="font-bold text-teal-400 text-sm uppercase tracking-wider mb-2">Node.js Server</h4>
+                        <p class="text-xs text-zinc-400">Express + Socket.io</p>
+                        <p class="text-xs text-zinc-500 mt-1">Handles authentication, routes messages between users,
+                            serves files</p>
+                    </div>
+                    <div class="border border-amber-500/20 bg-amber-500/5 rounded-xl p-5">
+                        <div class="text-3xl mb-2">🗄️</div>
+                        <h4 class="font-bold text-amber-400 text-sm uppercase tracking-wider mb-2">SQLite Database</h4>
+                        <p class="text-xs text-zinc-400">Persistent file-based storage</p>
+                        <p class="text-xs text-zinc-500 mt-1">Stores user accounts, passwords (hashed), reputation
+                            scores, and settings</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stack Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-lg">
+                            🟢</div>
+                        <div>
+                            <h4 class="font-bold text-white">Node.js</h4>
+                            <p class="text-xs text-zinc-500">JavaScript Runtime</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400">Runs JavaScript on the server (outside of a browser). Created by
+                        Ryan Dahl in 2009. Used by Netflix, LinkedIn, PayPal, and NASA. It's the engine that powers our
+                        chat server.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-zinc-500/10 border border-zinc-500/20 flex items-center justify-center text-lg">
+                            ⚡</div>
+                        <div>
+                            <h4 class="font-bold text-white">Express.js</h4>
+                            <p class="text-xs text-zinc-500">Web Framework</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400">A minimal web framework that handles HTTP requests (like when you
+                        visit a URL). It decides what HTML, CSS, or JSON data to send back. Think of it as the
+                        receptionist answering phone calls.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-lg">
+                            🔌</div>
+                        <div>
+                            <h4 class="font-bold text-white">Socket.io</h4>
+                            <p class="text-xs text-zinc-500">Real-Time Engine</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400">Creates a persistent two-way connection (WebSocket) between your
+                        browser and the server. Unlike normal HTTP which is "ask → answer → done", WebSockets stay open
+                        so messages appear instantly without refreshing.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-lg">
+                            🗃️</div>
+                        <div>
+                            <h4 class="font-bold text-white">SQLite3</h4>
+                            <p class="text-xs text-zinc-500">Database</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400">A lightweight database that stores data in a single file (chat.db).
+                        Unlike big databases like PostgreSQL or MySQL, SQLite needs zero setup — just a file on disk.
+                        Perfect for small-to-medium apps. Used in every iPhone and Android phone.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-lg">
+                            🔐</div>
+                        <div>
+                            <h4 class="font-bold text-white">JWT + bcrypt</h4>
+                            <p class="text-xs text-zinc-500">Authentication</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400"><strong>bcrypt</strong> hashes your password so even if the
+                        database gets stolen, nobody can read your password. <strong>JWT</strong> (JSON Web Token) is a
+                        signed "passport" the server gives you after login — your browser shows it on each request to
+                        prove identity.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">
+                            ✨</div>
+                        <div>
+                            <h4 class="font-bold text-white">Google Gemini 2.5 Flash</h4>
+                            <p class="text-xs text-zinc-500">AI Integration</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400">Google's generative AI model that powers the @gemini in-chat
+                        assistant and the Snow Day Predictor. The server sends prompts to Gemini's API and streams the
+                        response back to the chat as a "bot" message.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-lg">
+                            🐳</div>
+                        <div>
+                            <h4 class="font-bold text-white">Docker + Fly.io</h4>
+                            <p class="text-xs text-zinc-500">Deployment</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400"><strong>Docker</strong> packages the entire app into a "container"
+                        — a portable box with all dependencies included. <strong>Fly.io</strong> runs that container on
+                        a server in Secaucus, NJ with a persistent SSD volume for our database file.</p>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg">
+                            🎨</div>
+                        <div>
+                            <h4 class="font-bold text-white">TailwindCSS (CDN)</h4>
+                            <p class="text-xs text-zinc-500">Styling Framework</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-zinc-400">Instead of writing custom CSS files, Tailwind lets you style
+                        elements using utility classes directly in HTML. <span
+                            class="mono text-xs text-zinc-300">class="text-white bg-indigo-600 rounded-xl px-4
+                            py-2"</span> — each class does one small thing, and you compose them together.</p>
+                </div>
+            </div>
+
+            <!-- Fun Stats -->
+            <div class="glass rounded-xl p-6 mt-8">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span class="text-teal-400">📊</span> Project Stats
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="bg-zinc-900/50 rounded-lg p-4">
+                        <div class="text-2xl font-extrabold text-teal-400" id="stat-files">—</div>
+                        <div class="text-xs text-zinc-500 mt-1 uppercase tracking-wider">Source Files</div>
+                    </div>
+                    <div class="bg-zinc-900/50 rounded-lg p-4">
+                        <div class="text-2xl font-extrabold text-indigo-400">6</div>
+                        <div class="text-xs text-zinc-500 mt-1 uppercase tracking-wider">Major Versions</div>
+                    </div>
+                    <div class="bg-zinc-900/50 rounded-lg p-4">
+                        <div class="text-2xl font-extrabold text-amber-400">8</div>
+                        <div class="text-xs text-zinc-500 mt-1 uppercase tracking-wider">npm Packages</div>
+                    </div>
+                    <div class="bg-zinc-900/50 rounded-lg p-4">
+                        <div class="text-2xl font-extrabold text-rose-400">1</div>
+                        <div class="text-xs text-zinc-500 mt-1 uppercase tracking-wider">Developer</div>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
 
     <script>
-        document.getElementById('latest-push-date').textContent = new Date().toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+        // Time
         function updateTime() {
             const now = new Date();
             document.getElementById('nav-time').textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
                 ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
-        updateTime();
-        setInterval(updateTime, 60000);
+        updateTime(); setInterval(updateTime, 60000);
 
-        // Admin gear handler
-        document.getElementById('admin-gear').addEventListener('click', async () => {
-            const existingToken = sessionStorage.getItem('admin_token');
-            if (existingToken) {
-                window.location.href = '/admin.html';
-                return;
-            }
-            const pin = prompt('Enter Admin PIN:');
-            if (!pin) return;
-            try {
-                const res = await fetch('/api/admin/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin })
-                });
-                const data = await res.json();
-                if (!res.ok) { alert('Invalid PIN'); return; }
-                sessionStorage.setItem('admin_token', data.adminToken);
-                window.location.href = '/admin.html';
-            } catch (e) { alert('Authentication failed'); }
+        // Tab switching
+        function showTab(tab) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('tab-active');
+                b.classList.add('border-transparent', 'text-zinc-500');
+            });
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            const btn = document.getElementById(`tab-${tab}`);
+            btn.classList.add('tab-active');
+            btn.classList.remove('border-transparent', 'text-zinc-500');
+        }
+
+        // File tree
+        const files = [
+            { name: 'server.js', icon: '⚙️', color: 'text-teal-400', desc: 'Backend — Express + Socket.io', lang: 'js' },
+            { name: 'app.js', icon: '💻', color: 'text-indigo-400', desc: 'Client — Chat logic & UI', lang: 'js' },
+            { name: 'chat.html', icon: '💬', color: 'text-pink-400', desc: 'Chat page markup', lang: 'html' },
+            { name: 'index.html', icon: '🏠', color: 'text-amber-400', desc: 'Landing page', lang: 'html' },
+            { name: 'updates.html', icon: '📋', color: 'text-green-400', desc: 'This page!', lang: 'html' },
+            { name: 'suggestions.html', icon: '💡', color: 'text-yellow-400', desc: 'Neural Link form', lang: 'html' },
+            { name: 'admin.html', icon: '🛡️', color: 'text-red-400', desc: 'Admin dashboard', lang: 'html' },
+            { name: 'package.json', icon: '📦', color: 'text-cyan-400', desc: 'Dependencies list', lang: 'json' },
+            { name: 'fly.toml', icon: '☁️', color: 'text-purple-400', desc: 'Fly.io deployment config', lang: 'toml' },
+            { name: 'Dockerfile', icon: '🐳', color: 'text-sky-400', desc: 'Docker container recipe', lang: 'dockerfile' },
+        ];
+
+        const fileTree = document.getElementById('file-tree');
+        let activeFile = null;
+
+        files.forEach(f => {
+            const btn = document.createElement('button');
+            btn.className = 'file-btn w-full text-left px-3 py-2 rounded-lg border border-transparent hover:bg-zinc-800/50 transition-all flex items-center gap-2.5 group';
+            btn.innerHTML = `
+                <span class="text-base">${f.icon}</span>
+                <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium ${f.color} truncate mono">${f.name}</div>
+                    <div class="text-[10px] text-zinc-600 truncate">${f.desc}</div>
+                </div>
+            `;
+            btn.addEventListener('click', () => loadFile(f, btn));
+            fileTree.appendChild(btn);
         });
+
+        document.getElementById('stat-files').textContent = files.length;
+
+        async function loadFile(file, btn) {
+            // Update active state
+            document.querySelectorAll('.file-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFile = file.name;
+
+            document.getElementById('code-filename').textContent = file.name;
+            document.getElementById('code-content').innerHTML = '<div class="flex justify-center py-20"><div class="w-6 h-6 rounded-full border-t-2 border-l-2 border-teal-500 animate-spin"></div></div>';
+
+            try {
+                const res = await fetch(`/api/source/${file.name}`);
+                if (!res.ok) throw new Error('Access denied');
+                const text = await res.text();
+                const lines = text.split('\n');
+                document.getElementById('code-lines').textContent = `${lines.length} lines`;
+
+                const highlighted = lines.map(line => {
+                    let html = escapeHtml(line);
+                    html = highlightSyntax(html, file.lang);
+                    return `<div class="code-line whitespace-pre">${html}</div>`;
+                }).join('');
+
+                document.getElementById('code-content').innerHTML = highlighted;
+            } catch (e) {
+                document.getElementById('code-content').innerHTML = `<div class="text-red-400 text-center py-20 text-sm">Failed to load file: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function highlightSyntax(html, lang) {
+            if (lang === 'js') {
+                // Comments
+                html = html.replace(/(\/\/.*$)/gm, '<span class="syn-comment">$1</span>');
+                // Strings
+                html = html.replace(/(&#39;[^&#]*?&#39;|&quot;[^&]*?&quot;)/g, '<span class="syn-string">$1</span>');
+                // Template literal backticks
+                html = html.replace(/(`[^`]*?`)/g, '<span class="syn-string">$1</span>');
+                // Keywords
+                html = html.replace(/\b(const|let|var|function|return|if|else|for|while|class|new|import|export|from|async|await|try|catch|throw|switch|case|break|default|this|typeof|instanceof|in|of|do|continue)\b/g, '<span class="syn-keyword">$1</span>');
+                // Numbers
+                html = html.replace(/\b(\d+\.?\d*)\b/g, '<span class="syn-number">$1</span>');
+                // Function calls
+                html = html.replace(/\b([a-zA-Z_]\w*)\s*\(/g, '<span class="syn-func">$1</span>(');
+            } else if (lang === 'html') {
+                // Tags
+                html = html.replace(/(&lt;\/?)([\w-]+)/g, '$1<span class="syn-tag">$2</span>');
+                // Attributes
+                html = html.replace(/\b(class|id|src|href|type|placeholder|name|value|onclick|style)=/g, '<span class="syn-attr">$1</span>=');
+                // Strings
+                html = html.replace(/(&#39;[^&#]*?&#39;|&quot;[^&]*?&quot;)/g, '<span class="syn-string">$1</span>');
+                // Comments
+                html = html.replace(/(&lt;!--.*?--&gt;)/g, '<span class="syn-comment">$1</span>');
+            } else if (lang === 'json') {
+                html = html.replace(/(&#39;[^&#]*?&#39;|&quot;[^&]*?&quot;)/g, '<span class="syn-string">$1</span>');
+                html = html.replace(/\b(\d+\.?\d*)\b/g, '<span class="syn-number">$1</span>');
+                html = html.replace(/\b(true|false|null)\b/g, '<span class="syn-keyword">$1</span>');
+            }
+            return html;
+        }
     </script>
 </body>
 

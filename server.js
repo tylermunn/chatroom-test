@@ -86,7 +86,13 @@ app.get('/api/source/:file', (req, res) => {
         'server.js': path.join(__dirname, 'server.js'),
         'app.js': path.join(__dirname, 'public', 'app.js'),
         'chat.html': path.join(__dirname, 'public', 'chat.html'),
-        'index.html': path.join(__dirname, 'public', 'index.html')
+        'index.html': path.join(__dirname, 'public', 'index.html'),
+        'updates.html': path.join(__dirname, 'public', 'updates.html'),
+        'suggestions.html': path.join(__dirname, 'public', 'suggestions.html'),
+        'admin.html': path.join(__dirname, 'public', 'admin.html'),
+        'package.json': path.join(__dirname, 'package.json'),
+        'fly.toml': path.join(__dirname, 'fly.toml'),
+        'Dockerfile': path.join(__dirname, 'Dockerfile'),
     };
 
     if (allowedFiles[requestedFile]) {
