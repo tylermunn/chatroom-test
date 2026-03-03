@@ -388,6 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isAdmin = data.user.role === 'mod';
             localStorage.setItem('chat_token', data.token);
             connectSocket(data.token);
+            setTimeout(() => setupDMListeners(), 1500);
         } catch (err) {
             showAuthError(err.message);
         }
@@ -964,6 +965,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (navCount) navCount.textContent = users.length;
 
         activeUsersList.innerHTML = '';
+        const mobileListEl = document.getElementById('active-users-list-mobile');
+        if (mobileListEl) mobileListEl.innerHTML = '';
         users.forEach(user => {
             const isMe = user.id === mySessionId;
             const li = document.createElement('li');
@@ -1012,22 +1015,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
             if (user.isBot) {
-                // Clicking AI writes @gemini
                 li.addEventListener('click', () => {
                     const input = document.getElementById('message-input');
                     input.value = `@gemini ` + input.value;
                     input.focus();
                 });
             } else if (!isMe) {
+                // Click user to open DM
+                li.addEventListener('click', (e) => {
+                    if (e.target.closest('.kick-user-btn')) return;
+                    openDM(user.username);
+                });
                 if (isAdmin) {
-                    li.querySelector('.kick-user-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        kickUser(user.id);
-                    });
+                    const kickBtn = li.querySelector('.kick-user-btn');
+                    if (kickBtn) {
+                        kickBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            kickUser(user.id);
+                        });
+                    }
                 }
             }
 
             activeUsersList.appendChild(li);
+
+            // Also populate mobile list
+            const mobileLi = li.cloneNode(true);
+            if (user.isBot) {
+                mobileLi.addEventListener('click', () => {
+                    const input = document.getElementById('message-input');
+                    input.value = `@gemini ` + input.value;
+                    input.focus();
+                });
+            } else if (!isMe) {
+                mobileLi.addEventListener('click', () => openDM(user.username));
+            }
+            const mobileList = document.getElementById('active-users-list-mobile');
+            if (mobileList) mobileList.appendChild(mobileLi);
         });
     }
 
@@ -1041,6 +1065,210 @@ document.addEventListener('DOMContentLoaded', () => {
         }[tag] || tag));
     }
 
+    // ==================== DIRECT MESSAGE SYSTEM ====================
+    let currentDMUser = null;
+    let currentConvoId = null;
+    const dmMessagesContainer = document.getElementById('dm-messages-container');
+    const dmForm = document.getElementById('dm-form');
+    const dmInput = document.getElementById('dm-input');
+    const dmUsernameEl = document.getElementById('dm-username');
+    const dmAvatarEl = document.getElementById('dm-avatar');
+
+    function getConvoId(user1, user2) {
+        const participants = [user1.toLowerCase(), user2.toLowerCase()].sort();
+        return `dm_${participants[0]}_${participants[1]}`;
+    }
+
+    // Switch to DM view
+    window.openDM = function (username) {
+        if (!socket || !myUsername) return;
+        currentDMUser = username;
+        currentConvoId = getConvoId(myUsername, username);
+
+        const globalView = document.getElementById('global-chat-view');
+        const dmView = document.getElementById('dm-chat-view');
+        if (globalView) globalView.classList.add('hidden');
+        if (dmView) { dmView.classList.remove('hidden'); dmView.classList.add('flex'); }
+
+        if (dmUsernameEl) dmUsernameEl.textContent = username;
+        if (dmAvatarEl) dmAvatarEl.textContent = username.substring(0, 2).toUpperCase();
+        if (dmMessagesContainer) dmMessagesContainer.innerHTML = '<div class="text-center py-6"><div class="w-5 h-5 rounded-full border-t-2 border-l-2 border-rose-500 animate-spin mx-auto"></div></div>';
+
+        // Highlight in sidebar
+        document.querySelectorAll('.dm-convo-btn').forEach(b => b.classList.remove('bg-rose-500/10', 'border-rose-500/20'));
+        const activeBtn = document.getElementById('dm-convo-' + currentConvoId);
+        if (activeBtn) { activeBtn.classList.add('bg-rose-500/10', 'border-rose-500/20'); }
+
+        // Update global chat button style
+        const globalBtn = document.getElementById('btn-global-chat');
+        if (globalBtn) {
+            globalBtn.classList.remove('bg-indigo-500/10', 'border-indigo-500/20', 'text-indigo-400');
+            globalBtn.classList.add('bg-transparent', 'border-transparent', 'text-zinc-400');
+        }
+
+        socket.emit('load_dm_history', { conversationId: currentConvoId });
+        if (dmInput) dmInput.focus();
+    };
+
+    // Switch back to global chat
+    window.switchToGlobal = function () {
+        currentDMUser = null;
+        currentConvoId = null;
+
+        const globalView = document.getElementById('global-chat-view');
+        const dmView = document.getElementById('dm-chat-view');
+        if (dmView) { dmView.classList.add('hidden'); dmView.classList.remove('flex'); }
+        if (globalView) { globalView.classList.remove('hidden'); }
+
+        document.querySelectorAll('.dm-convo-btn').forEach(b => b.classList.remove('bg-rose-500/10', 'border-rose-500/20'));
+
+        const globalBtn = document.getElementById('btn-global-chat');
+        if (globalBtn) {
+            globalBtn.classList.add('bg-indigo-500/10', 'border-indigo-500/20', 'text-indigo-400');
+            globalBtn.classList.remove('bg-transparent', 'border-transparent', 'text-zinc-400');
+        }
+
+        if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    // DM form submit
+    if (dmForm && dmInput) {
+        dmForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = dmInput.value.trim();
+            if (text && socket && currentDMUser) {
+                socket.emit('send_dm', { to: currentDMUser, text });
+                dmInput.value = '';
+                dmInput.style.height = 'auto';
+            }
+        });
+
+        dmInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                dmForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        dmInput.addEventListener('input', () => {
+            dmInput.style.height = 'auto';
+            dmInput.style.height = Math.min(dmInput.scrollHeight, 120) + 'px';
+        });
+    }
+
+    function renderDMMessage(msg) {
+        const isMe = msg.sender.toLowerCase() === myUsername.toLowerCase();
+        const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const initial = msg.sender.substring(0, 2).toUpperCase();
+
+        const div = document.createElement('div');
+        div.className = 'flex items-start gap-2 msg-enter ' + (isMe ? 'flex-row-reverse' : '');
+
+        div.innerHTML = `
+            <div class="w-7 h-7 rounded-full ${isMe ? 'bg-indigo-600' : 'bg-gradient-to-tr from-rose-600 to-orange-500'} flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                ${initial}
+            </div>
+            <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}" style="max-width: min(80%, 480px);">
+                <div class="flex items-center gap-2 mb-0.5 ${isMe ? 'flex-row-reverse' : ''}">
+                    <span class="text-[12px] font-bold ${isMe ? 'text-indigo-400' : 'text-rose-400'}">${escapeHTML(msg.sender)}</span>
+                    <span class="text-[10px] font-mono text-zinc-600">${timeStr}</span>
+                </div>
+                <div class="text-[13.5px] leading-normal whitespace-pre-wrap ${isMe ? 'bg-indigo-600 text-white rounded-xl rounded-tr-sm' : 'bg-zinc-800/70 border border-zinc-700/40 text-zinc-100 rounded-xl rounded-tl-sm'} px-2.5 py-1 shadow-sm font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
+                    ${escapeHTML(msg.text)}
+                </div>
+            </div>
+        `;
+
+        return div;
+    }
+
+    function renderConversationsList(convos) {
+        const list = document.getElementById('dm-conversations-list');
+        if (!list) return;
+
+        if (!convos || convos.length === 0) {
+            list.innerHTML = '<p class="text-[11px] text-zinc-600 text-center py-3 px-2">Click a user to start a conversation</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        convos.forEach(convo => {
+            const btn = document.createElement('button');
+            btn.id = 'dm-convo-' + convo.id;
+            btn.className = 'dm-convo-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-transparent hover:bg-zinc-800/50 transition-all text-left group ' + (convo.id === currentConvoId ? 'bg-rose-500/10 border-rose-500/20' : '');
+
+            const initial = convo.otherUser.substring(0, 2).toUpperCase();
+            const timeStr = convo.lastTimestamp ? new Date(convo.lastTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const preview = convo.lastMessage || 'No messages yet';
+
+            btn.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-orange-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0">${initial}</div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[13px] font-bold text-zinc-200 truncate">${escapeHTML(convo.otherUser)}</span>
+                        <span class="text-[9px] text-zinc-600 font-mono shrink-0">${timeStr}</span>
+                    </div>
+                    <p class="text-[11px] text-zinc-500 truncate">${escapeHTML(preview.substring(0, 40))}</p>
+                </div>
+            `;
+
+            btn.addEventListener('click', () => openDM(convo.otherUser));
+            list.appendChild(btn);
+        });
+    }
+
+    function setupDMListeners() {
+        if (!socket) return;
+
+        socket.off('conversations_list');
+        socket.off('dm_history');
+        socket.off('receive_dm');
+        socket.off('dm_notification');
+
+        socket.on('conversations_list', (convos) => {
+            renderConversationsList(convos);
+        });
+
+        socket.on('dm_history', (data) => {
+            if (data.conversationId !== currentConvoId) return;
+            if (!dmMessagesContainer) return;
+
+            if (!data.messages || data.messages.length === 0) {
+                dmMessagesContainer.innerHTML = '<div class="text-center py-8"><p class="text-zinc-600 text-sm">No messages yet. Say hi! 👋</p></div>';
+                return;
+            }
+
+            dmMessagesContainer.innerHTML = '';
+            data.messages.forEach(msg => {
+                dmMessagesContainer.appendChild(renderDMMessage(msg));
+            });
+            dmMessagesContainer.scrollTop = dmMessagesContainer.scrollHeight;
+        });
+
+        socket.on('receive_dm', (msg) => {
+            if (msg.conversationId === currentConvoId && dmMessagesContainer) {
+                const placeholder = dmMessagesContainer.querySelector('.text-center');
+                if (placeholder) dmMessagesContainer.innerHTML = '';
+                dmMessagesContainer.appendChild(renderDMMessage(msg));
+                dmMessagesContainer.scrollTop = dmMessagesContainer.scrollHeight;
+            }
+            socket.emit('get_conversations');
+        });
+
+        socket.on('dm_notification', (data) => {
+            if (data.conversationId !== currentConvoId) {
+                const btn = document.getElementById('dm-convo-' + data.conversationId);
+                if (btn) {
+                    btn.classList.add('bg-rose-500/15', 'border-rose-500/30');
+                    setTimeout(() => btn.classList.remove('bg-rose-500/15', 'border-rose-500/30'), 3000);
+                }
+            }
+            socket.emit('get_conversations');
+        });
+
+        socket.emit('get_conversations');
+    }
+
     // Auto-Login Check
     const savedToken = localStorage.getItem('chat_token');
     if (savedToken) {
@@ -1048,13 +1276,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const base64Url = savedToken.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             const payload = JSON.parse(atob(base64));
-            // Check if token is expired
             if (payload.exp * 1000 > Date.now()) {
                 myUsername = payload.username;
                 isAdmin = payload.role === 'mod';
                 entryModal.classList.add('opacity-0', 'hidden');
                 entryModal.classList.remove('flex');
                 connectSocket(savedToken);
+                setTimeout(() => setupDMListeners(), 1500);
             } else {
                 localStorage.removeItem('chat_token');
                 fetchPreviousUsersStatus();
@@ -1064,7 +1292,6 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchPreviousUsersStatus();
         }
     } else {
-        // No token, ensure we fetch previous statuses
         fetchPreviousUsersStatus();
     }
 });

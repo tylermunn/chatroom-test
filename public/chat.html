@@ -244,144 +244,230 @@
 
         <div class="flex flex-1 overflow-hidden flex-col md:flex-row pb-6">
 
-            <!-- Top Row (Mobile) / Left Column (Desktop) - Users List -->
-            <!-- Fixed height on mobile (h-[80px]) so it never overtakes the screen on portrait mode -->
+            <!-- Sidebar: Channels + DMs + Users -->
             <div class="w-full md:w-72 h-[85px] min-h-[85px] max-h-[85px] md:h-full md:min-h-full md:max-h-full border-b md:border-b-0 md:border-r border-zinc-800 bg-[#18181b]/50 backdrop-blur-sm flex flex-col shrink-0 text-white z-10 shadow-sm md:shadow-none"
                 id="middle-pane">
-                <div class="px-5 py-4 border-b border-zinc-800 hidden md:block">
-                    <h2 class="text-xs font-bold tracking-widest text-zinc-500 uppercase mb-4">Network Status</h2>
-                    <div class="flex gap-4 border-b border-zinc-800 text-[13px] font-semibold text-zinc-400">
-                        <button class="pb-2 border-b-2 border-indigo-500 text-indigo-400">Chat Room</button>
-                        <button class="pb-2 hover:text-zinc-200 transition-colors">Users (<span
-                                id="active-count">1</span>)</button>
-                    </div>
+
+                <!-- Mobile: horizontal scroll of users -->
+                <div class="md:hidden flex-1 overflow-x-auto">
+                    <ul id="active-users-list-mobile"
+                        class="flex flex-row divide-x divide-zinc-800/50 py-2 shrink-0 h-full">
+                    </ul>
                 </div>
 
-                <!-- Active users -->
-                <ul id="active-users-list"
-                    class="flex md:block flex-row overflow-x-auto md:overflow-y-auto chat-scroll divide-x md:divide-x-0 md:divide-y divide-zinc-800/50 py-2 md:py-0 shrink-0">
-                    <!-- Users injected here -->
-                </ul>
+                <!-- Desktop: Full sidebar -->
+                <div class="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
+                    <!-- Global Chat Button -->
+                    <div class="px-3 pt-3 pb-2">
+                        <button id="btn-global-chat" onclick="switchToGlobal()"
+                            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/15 transition-all group">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z">
+                                </path>
+                            </svg>
+                            <div class="text-left min-w-0 flex-1">
+                                <div class="text-sm font-bold truncate">Global Chat</div>
+                                <div class="text-[10px] text-zinc-500 truncate">Everyone</div>
+                            </div>
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                        </button>
+                    </div>
+
+                    <!-- Direct Messages Section -->
+                    <div class="px-3 pb-1">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-[10px] font-bold tracking-widest text-zinc-600 uppercase">Direct Messages
+                            </h3>
+                        </div>
+                    </div>
+                    <div id="dm-conversations-list" class="flex-1 overflow-y-auto chat-scroll px-2 space-y-0.5 min-h-0">
+                        <p class="text-[11px] text-zinc-600 text-center py-3 px-2">Click a user below to start a
+                            conversation</p>
+                    </div>
+
+                    <!-- Active Users Section -->
+                    <div class="border-t border-zinc-800 mt-auto">
+                        <div class="px-4 pt-3 pb-1">
+                            <h3
+                                class="text-[10px] font-bold tracking-widest text-zinc-600 uppercase flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Online — <span id="active-count">0</span>
+                            </h3>
+                        </div>
+                        <ul id="active-users-list"
+                            class="overflow-y-auto chat-scroll max-h-[180px] pb-2 px-2 space-y-0.5">
+                        </ul>
+                    </div>
+                </div>
             </div>
 
-            <!-- Main Chat Area -->
+            <!-- Main Chat Area (Global + DM views stacked) -->
             <main class="flex flex-1 flex-col bg-[#0c0a09] relative min-w-0" id="right-pane">
-                <!-- Info Header -->
-                <div
-                    class="px-6 py-4 border-b border-zinc-800 bg-[#121214] shrink-0 flex items-center justify-between shadow-sm z-10">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <div>
-                            <h2 class="text-[15px] font-bold text-zinc-100 tracking-wide">// CHAT_ROOM</h2>
-                            <div class="text-[11px] text-zinc-500 mt-0.5 font-mono uppercase">
-                                Open Session
+
+                <!-- ===== GLOBAL CHAT VIEW ===== -->
+                <div id="global-chat-view" class="flex flex-col flex-1 overflow-hidden">
+                    <!-- Info Header -->
+                    <div
+                        class="px-6 py-4 border-b border-zinc-800 bg-[#121214] shrink-0 flex items-center justify-between shadow-sm z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <div>
+                                <h2 class="text-[15px] font-bold text-zinc-100 tracking-wide">// CHAT_ROOM</h2>
+                                <div class="text-[11px] text-zinc-500 mt-0.5 font-mono uppercase">Open Session</div>
                             </div>
-                        </div>
-                        <!-- Admin Panel (Hidden) -->
-                        <div id="admin-panel" class="hidden ml-6 pl-6 border-l border-zinc-700">
-                            <button id="purge-btn"
-                                class="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-4 py-1.5 rounded-md text-[13px] font-bold transition-all border border-red-500/20 focus:ring-2 focus:ring-red-500/40 uppercase tracking-wide flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                    </path>
-                                </svg>
-                                Purge System
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Messages Area -->
-                <div id="messages-container"
-                    class="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-2 space-y-1 chat-scroll bg-gradient-to-b from-[#0c0a09] to-[#121214]">
-                    <!-- Messages will be injected here -->
-                </div>
-
-                <!-- Typing Indicator -->
-                <div id="typing-indicator" class="hidden px-6 py-1 text-zinc-500 text-xs font-mono">
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="flex gap-0.5">
-                            <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
-                                style="animation-delay: 0s"></span>
-                            <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
-                                style="animation-delay: 0.15s"></span>
-                            <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
-                                style="animation-delay: 0.3s"></span>
-                        </span>
-                        <span id="typing-text">Someone is typing...</span>
-                    </span>
-                </div>
-
-                <!-- Input Area -->
-                <div class="px-3 md:px-4 pb-3 pt-2 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto relative">
-                    <!-- Emoji Picker Popup -->
-                    <div id="emoji-picker"
-                        class="hidden absolute bottom-full left-3 md:left-4 mb-2 w-[320px] max-h-[340px] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
-                        <div id="emoji-tabs"
-                            class="flex border-b border-zinc-800 px-2 pt-2 gap-1 shrink-0 overflow-x-auto">
-                        </div>
-                        <div id="emoji-grid" class="flex-1 overflow-y-auto p-2 grid grid-cols-8 gap-1 chat-scroll">
-                        </div>
-                    </div>
-
-                    <!-- GIF Search Popup -->
-                    <div id="gif-picker"
-                        class="hidden absolute bottom-full left-3 md:left-4 mb-2 w-[360px] max-h-[400px] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
-                        <div class="flex items-center gap-2 p-3 border-b border-zinc-800 shrink-0">
-                            <svg class="w-4 h-4 text-zinc-500 shrink-0" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                            <input id="gif-search-input" type="text" placeholder="Search GIFs..." autocomplete="off"
-                                class="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none" />
-                        </div>
-                        <div id="gif-grid" class="flex-1 overflow-y-auto p-2 chat-scroll"
-                            style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
-                            <p class="text-zinc-500 text-xs text-center col-span-2 py-8 font-mono">Type to search for
-                                GIFs</p>
-                        </div>
-                        <div class="px-3 py-1.5 border-t border-zinc-800 flex items-center justify-end shrink-0">
-                            <span class="text-[9px] text-zinc-600 font-mono uppercase tracking-wider">Powered by
-                                Tenor</span>
-                        </div>
-                    </div>
-
-                    <form id="chat-form" class="relative max-w-4xl mx-auto">
-                        <div
-                            class="flex items-end bg-zinc-900/80 border border-zinc-700/80 rounded-2xl overflow-hidden focus-within:border-indigo-500/70 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all shadow-lg">
-                            <!-- Emoji & GIF Buttons -->
-                            <div class="flex items-center shrink-0 pl-2 pb-2.5 gap-0.5">
-                                <button type="button" id="emoji-btn" title="Emoji"
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-yellow-400 transition-colors text-lg">
-                                    😊
-                                </button>
-                                <button type="button" id="gif-btn" title="GIF Search"
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-indigo-400 transition-colors">
-                                    <span
-                                        class="text-[10px] font-black tracking-tight border border-current rounded px-1 py-px leading-none">GIF</span>
-                                </button>
-                            </div>
-                            <textarea id="message-input" autocomplete="off" rows="1"
-                                placeholder="Message the group... (@gemini for AI)"
-                                class="flex-1 py-3 px-2 bg-transparent focus:outline-none text-[14px] text-zinc-100 placeholder-zinc-500 font-medium w-full"></textarea>
-                            <div class="p-1.5 shrink-0 self-end">
-                                <button type="submit"
-                                    class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl w-9 h-9 font-bold transition-all text-sm flex items-center justify-center shadow-md hover:shadow-indigo-500/25 active:scale-95">
+                            <div id="admin-panel" class="hidden ml-6 pl-6 border-l border-zinc-700">
+                                <button id="purge-btn"
+                                    class="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-4 py-1.5 rounded-md text-[13px] font-bold transition-all border border-red-500/20 uppercase tracking-wide flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                            d="M5 12h14M12 5l7 7-7 7"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
                                     </svg>
+                                    Purge
                                 </button>
                             </div>
                         </div>
-                        <div class="flex justify-between items-center mt-1 px-2">
-                            <span class="text-[10px] text-zinc-600 font-mono">Shift+Enter for new line</span>
-                            <span id="char-count" class="text-[10px] text-zinc-600 font-mono"></span>
+                    </div>
+
+                    <!-- Messages Area -->
+                    <div id="messages-container"
+                        class="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-2 space-y-1 chat-scroll bg-gradient-to-b from-[#0c0a09] to-[#121214]">
+                    </div>
+
+                    <!-- Typing Indicator -->
+                    <div id="typing-indicator" class="hidden px-6 py-1 text-zinc-500 text-xs font-mono">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="flex gap-0.5">
+                                <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
+                                    style="animation-delay: 0s"></span>
+                                <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
+                                    style="animation-delay: 0.15s"></span>
+                                <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"
+                                    style="animation-delay: 0.3s"></span>
+                            </span>
+                            <span id="typing-text">Someone is typing...</span>
+                        </span>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="px-3 md:px-4 pb-3 pt-2 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto relative">
+                        <!-- Emoji Picker Popup -->
+                        <div id="emoji-picker"
+                            class="hidden absolute bottom-full left-3 md:left-4 mb-2 w-[320px] max-h-[340px] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
+                            <div id="emoji-tabs"
+                                class="flex border-b border-zinc-800 px-2 pt-2 gap-1 shrink-0 overflow-x-auto">
+                            </div>
+                            <div id="emoji-grid" class="flex-1 overflow-y-auto p-2 grid grid-cols-8 gap-1 chat-scroll">
+                            </div>
                         </div>
-                    </form>
+                        <!-- GIF Search Popup -->
+                        <div id="gif-picker"
+                            class="hidden absolute bottom-full left-3 md:left-4 mb-2 w-[360px] max-h-[400px] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
+                            <div class="flex items-center gap-2 p-3 border-b border-zinc-800 shrink-0">
+                                <svg class="w-4 h-4 text-zinc-500 shrink-0" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <input id="gif-search-input" type="text" placeholder="Search GIFs..." autocomplete="off"
+                                    class="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none" />
+                            </div>
+                            <div id="gif-grid" class="flex-1 overflow-y-auto p-2 chat-scroll"
+                                style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                                <p class="text-zinc-500 text-xs text-center col-span-2 py-8 font-mono">Type to search
+                                    for GIFs</p>
+                            </div>
+                            <div class="px-3 py-1.5 border-t border-zinc-800 flex items-center justify-end shrink-0">
+                                <span class="text-[9px] text-zinc-600 font-mono uppercase tracking-wider">Powered by
+                                    Tenor</span>
+                            </div>
+                        </div>
+
+                        <form id="chat-form" class="relative max-w-4xl mx-auto">
+                            <div
+                                class="flex items-end bg-zinc-900/80 border border-zinc-700/80 rounded-2xl overflow-hidden focus-within:border-indigo-500/70 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all shadow-lg">
+                                <div class="flex items-center shrink-0 pl-2 pb-2.5 gap-0.5">
+                                    <button type="button" id="emoji-btn" title="Emoji"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-yellow-400 transition-colors text-lg">😊</button>
+                                    <button type="button" id="gif-btn" title="GIF Search"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-indigo-400 transition-colors">
+                                        <span
+                                            class="text-[10px] font-black tracking-tight border border-current rounded px-1 py-px leading-none">GIF</span>
+                                    </button>
+                                </div>
+                                <textarea id="message-input" autocomplete="off" rows="1"
+                                    placeholder="Message the group... (@gemini for AI)"
+                                    class="flex-1 py-3 px-2 bg-transparent focus:outline-none text-[14px] text-zinc-100 placeholder-zinc-500 font-medium w-full"></textarea>
+                                <div class="p-1.5 shrink-0 self-end">
+                                    <button type="submit"
+                                        class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl w-9 h-9 font-bold transition-all text-sm flex items-center justify-center shadow-md hover:shadow-indigo-500/25 active:scale-95">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                d="M5 12h14M12 5l7 7-7 7"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mt-1 px-2">
+                                <span class="text-[10px] text-zinc-600 font-mono">Shift+Enter for new line</span>
+                                <span id="char-count" class="text-[10px] text-zinc-600 font-mono"></span>
+                            </div>
+                        </form>
+                    </div>
                 </div>
+
+                <!-- ===== DM CHAT VIEW (hidden by default) ===== -->
+                <div id="dm-chat-view" class="hidden flex flex-col flex-1 overflow-hidden">
+                    <!-- DM Header -->
+                    <div
+                        class="px-4 py-3 border-b border-zinc-800 bg-[#121214] shrink-0 flex items-center gap-3 shadow-sm z-10">
+                        <button onclick="switchToGlobal()"
+                            class="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white"
+                            title="Back to Global">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-orange-500 flex items-center justify-center text-xs font-bold text-white"
+                            id="dm-avatar">?</div>
+                        <div>
+                            <h2 id="dm-username" class="text-[15px] font-bold text-zinc-100"></h2>
+                            <div id="dm-status" class="text-[11px] text-zinc-500 font-mono">Direct Message</div>
+                        </div>
+                    </div>
+
+                    <!-- DM Messages -->
+                    <div id="dm-messages-container"
+                        class="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-2 space-y-1.5 chat-scroll bg-gradient-to-b from-[#0c0a09] to-[#121214]">
+                        <div class="text-center py-8">
+                            <p class="text-zinc-600 text-sm">Start of your conversation</p>
+                        </div>
+                    </div>
+
+                    <!-- DM Input -->
+                    <div class="px-3 md:px-4 pb-3 pt-2 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto">
+                        <form id="dm-form" class="relative max-w-4xl mx-auto">
+                            <div
+                                class="flex items-end bg-zinc-900/80 border border-zinc-700/80 rounded-2xl overflow-hidden focus-within:border-rose-500/70 focus-within:ring-1 focus-within:ring-rose-500/30 transition-all shadow-lg">
+                                <textarea id="dm-input" autocomplete="off" rows="1" placeholder="Send a message..."
+                                    class="flex-1 py-3 px-4 bg-transparent focus:outline-none text-[14px] text-zinc-100 placeholder-zinc-500 font-medium w-full"
+                                    style="resize:none;overflow-y:hidden;max-height:120px;min-height:22px;line-height:22px;"></textarea>
+                                <div class="p-1.5 shrink-0 self-end">
+                                    <button type="submit"
+                                        class="bg-rose-600 hover:bg-rose-500 text-white rounded-xl w-9 h-9 font-bold transition-all text-sm flex items-center justify-center shadow-md active:scale-95">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                d="M5 12h14M12 5l7 7-7 7"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
             </main>
         </div>
 

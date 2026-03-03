@@ -60,6 +60,40 @@ db.serialize(() => {
         count INTEGER DEFAULT 0
     )`);
 
+    // Persistent global chat messages
+    db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        msg_id TEXT UNIQUE,
+        username TEXT NOT NULL,
+        text TEXT NOT NULL,
+        is_bot INTEGER DEFAULT 0,
+        is_admin INTEGER DEFAULT 0,
+        is_verified INTEGER DEFAULT 0,
+        avatar TEXT,
+        score INTEGER DEFAULT 0,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Direct messages
+    db.run(`CREATE TABLE IF NOT EXISTS direct_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        msg_id TEXT UNIQUE,
+        conversation_id TEXT NOT NULL,
+        sender TEXT NOT NULL,
+        text TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Conversations (DM threads)
+    db.run(`CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        participant1 TEXT NOT NULL,
+        participant2 TEXT NOT NULL,
+        last_message TEXT,
+        last_timestamp TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     // Preload avatar cache
     db.all('SELECT username, avatar FROM users WHERE avatar IS NOT NULL', [], (err, rows) => {
         if (!err && rows) {
@@ -519,44 +553,149 @@ io.on('connection', (socket) => {
 
     // Client explicitly joins
     socket.on('join_chat', () => {
-        // User is already authenticated and checked via io.use
         const username = socket.user.username;
 
         // Notify everyone that someone joined
-        const sysMsg = {
-            text: `${username} joined the chat.`,
-            timestamp: new Date().toISOString()
-        };
+        const sysMsg = { text: `${username} joined the chat.`, timestamp: new Date().toISOString() };
         io.emit('system_message', sysMsg);
-
-        // Add to history
         pushHistory('system', sysMsg);
 
         // Send updated user list to everyone
         io.emit('update_roster', buildRoster());
 
-        // Send chat history to the newly joined user
-        socket.emit('chat_history', messageHistory);
+        // Load persistent chat history from SQLite (last 200 messages)
+        db.all('SELECT * FROM chat_messages ORDER BY id DESC LIMIT 200', [], (err, rows) => {
+            if (err || !rows) {
+                socket.emit('chat_history', messageHistory);
+                return;
+            }
+            const dbHistory = rows.reverse().map(r => ({
+                type: 'chat',
+                data: {
+                    msgId: r.msg_id,
+                    username: r.username,
+                    text: r.text,
+                    timestamp: r.timestamp,
+                    id: r.is_bot ? 'gemini_bot' : r.username,
+                    isAdmin: !!r.is_admin,
+                    isBot: !!r.is_bot,
+                    isVerified: !!r.is_verified,
+                    avatar: r.avatar || avatarCache.get(r.username) || null,
+                    score: r.score || 0,
+                }
+            }));
+            // Merge with any in-memory system messages
+            const merged = [...dbHistory, ...messageHistory.filter(m => m.type === 'system')];
+            socket.emit('chat_history', merged);
+        });
 
-        // Gemini welcome message (sent only to the new user, after a short delay)
+        // Gemini welcome message
         setTimeout(() => {
             const welcomeMsg = {
                 msgId: Math.random().toString(36).substring(2, 11),
                 username: 'Gemini',
-                text: `👋 Welcome to munn.fun, ${username}!\n\n` +
-                    `Here's how to get started:\n` +
-                    `💬 Just type to chat with everyone online\n` +
-                    `😊 Use the emoji & GIF buttons to spice things up\n` +
-                    `🤖 Mention @gemini to ask me anything\n` +
-                    `❤️ Hover over messages to like them\n\n` +
-                    `Type !help to see all commands. Have fun! ⚡`,
+                text: `👋 Welcome, ${username}! Chat with everyone, send DMs by clicking a user, or mention @gemini to ask me anything. Have fun! ⚡`,
                 timestamp: new Date().toISOString(),
                 id: 'gemini_bot',
                 isAdmin: false,
                 isBot: true,
             };
             socket.emit('chat_message', welcomeMsg);
-        }, 2000);
+        }, 1500);
+    });
+
+    // ========== DIRECT MESSAGE SYSTEM ==========
+
+    // Get user's conversations list
+    socket.on('get_conversations', () => {
+        const userObj = activeUsers.get(socket.id);
+        if (!userObj) return;
+        const username = userObj.username;
+
+        db.all(
+            `SELECT * FROM conversations 
+             WHERE LOWER(participant1) = LOWER(?) OR LOWER(participant2) = LOWER(?)
+             ORDER BY last_timestamp DESC`,
+            [username, username],
+            (err, rows) => {
+                if (err) { socket.emit('conversations_list', []); return; }
+                const convos = (rows || []).map(r => ({
+                    id: r.id,
+                    otherUser: r.participant1.toLowerCase() === username.toLowerCase() ? r.participant2 : r.participant1,
+                    lastMessage: r.last_message,
+                    lastTimestamp: r.last_timestamp,
+                }));
+                socket.emit('conversations_list', convos);
+            }
+        );
+    });
+
+    // Load DM history for a conversation
+    socket.on('load_dm_history', (data) => {
+        const userObj = activeUsers.get(socket.id);
+        if (!userObj) return;
+        const convoId = data.conversationId;
+
+        db.all(
+            'SELECT * FROM direct_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT 500',
+            [convoId],
+            (err, rows) => {
+                if (err) { socket.emit('dm_history', { conversationId: convoId, messages: [] }); return; }
+                const messages = (rows || []).map(r => ({
+                    msgId: r.msg_id,
+                    sender: r.sender,
+                    text: r.text,
+                    timestamp: r.timestamp,
+                }));
+                socket.emit('dm_history', { conversationId: convoId, messages });
+            }
+        );
+    });
+
+    // Send a DM
+    socket.on('send_dm', (data) => {
+        const userObj = activeUsers.get(socket.id);
+        if (!userObj || !data.to || !data.text) return;
+        const sender = userObj.username;
+        const receiver = data.to;
+        const text = data.text.trim();
+        if (!text) return;
+
+        // Create conversation ID (alphabetical order for consistency)
+        const participants = [sender.toLowerCase(), receiver.toLowerCase()].sort();
+        const convoId = `dm_${participants[0]}_${participants[1]}`;
+
+        const msgId = Math.random().toString(36).substring(2, 11);
+        const timestamp = new Date().toISOString();
+
+        // Save to direct_messages table
+        db.run(
+            'INSERT INTO direct_messages (msg_id, conversation_id, sender, text, timestamp) VALUES (?, ?, ?, ?, ?)',
+            [msgId, convoId, sender, text, timestamp]
+        );
+
+        // Upsert conversation
+        db.run(
+            `INSERT INTO conversations (id, participant1, participant2, last_message, last_timestamp)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET last_message = ?, last_timestamp = ?`,
+            [convoId, sender, receiver, text, timestamp, text, timestamp]
+        );
+
+        const dmMsg = { msgId, conversationId: convoId, sender, text, timestamp };
+
+        // Send to sender
+        socket.emit('receive_dm', dmMsg);
+
+        // Send to receiver if online
+        for (const [id, u] of activeUsers.entries()) {
+            if (u.username.toLowerCase() === receiver.toLowerCase() && id !== socket.id) {
+                io.to(id).emit('receive_dm', dmMsg);
+                // Also notify them of updated conversations
+                io.to(id).emit('dm_notification', { from: sender, conversationId: convoId, text, timestamp });
+                break;
+            }
+        }
     });
 
     socket.on('chat_message', (msgData) => {
@@ -752,6 +891,12 @@ io.on('connection', (socket) => {
             };
             io.emit('chat_message', chatMsg);
 
+            // Persist to SQLite
+            db.run(
+                'INSERT INTO chat_messages (msg_id, username, text, is_bot, is_admin, is_verified, avatar, score, timestamp) VALUES (?, ?, ?, 0, ?, ?, ?, 0, ?)',
+                [chatMsg.msgId, chatMsg.username, chatMsg.text, isMod ? 1 : 0, chatMsg.isVerified ? 1 : 0, chatMsg.avatar, chatMsg.timestamp]
+            );
+
             // Track message count
             totalMessagesSent++;
             db.run('INSERT INTO message_counts (username, count) VALUES (?, 1) ON CONFLICT(username) DO UPDATE SET count = count + 1', [userObj.username]);
@@ -788,6 +933,12 @@ io.on('connection', (socket) => {
                         };
                         io.emit('chat_message', geminiMsg);
                         pushHistory('chat', geminiMsg);
+
+                        // Persist Gemini message
+                        db.run(
+                            'INSERT INTO chat_messages (msg_id, username, text, is_bot, is_admin, is_verified, avatar, score, timestamp) VALUES (?, ?, ?, 1, 0, 0, NULL, 0, ?)',
+                            [geminiMsg.msgId, geminiMsg.username, geminiMsg.text, geminiMsg.timestamp]
+                        );
                     } catch (err) {
                         console.error("Gemini Error:", err);
                         // Optional: could send an error message from Gemini to chat, but silent failure is safer.
