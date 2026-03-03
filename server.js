@@ -31,6 +31,105 @@ let totalMessagesSent = 0;
 // In-memory avatar cache for fast lookups
 const avatarCache = new Map();
 
+// ==================== PROFANITY FILTER ====================
+// School-appropriate PG-13 content filter (server-side, can't be bypassed)
+
+// Words that must match as standalone (word-boundary checked) to avoid false positives
+const PROFANITY_STRICT = [
+    'ass', 'damn', 'hell', 'crap', 'dick', 'cock', 'tit', 'cum', 'hoe',
+    'fag', 'kys', 'af', 'wtf', 'wth', 'stfu', 'gtfo',
+];
+
+// Words that match anywhere in the text (substring match)
+const PROFANITY_BROAD = [
+    'fuck', 'shit', 'bitch', 'pussy', 'penis', 'vagina', 'boob', 'jizz',
+    'whore', 'slut', 'bastard', 'piss', 'cunt', 'twat', 'wank', 'dildo',
+    'porn', 'xxx', 'nude', 'naked', 'horny', 'orgasm',
+    'nigger', 'nigga', 'faggot', 'retard', 'spic', 'chink', 'kike',
+    'tranny', 'dyke', 'wetback',
+    'cocaine', 'heroin', 'ecstasy', 'xanax',
+    'kill yourself', 'shoot up', 'bomb threat',
+    'milf', 'thot',
+];
+
+// Safe words that contain profanity substrings (whitelist)
+const SAFE_WORDS = [
+    'class', 'classic', 'pass', 'passing', 'passion', 'assignment', 'assist',
+    'glass', 'grass', 'mass', 'bass', 'compass', 'embassy', 'asset',
+    'hello', 'shell', 'seashell', 'shellfish', 'othello',
+    'title', 'subtitle', 'titillate', 'titan', 'titivate',
+    'assess', 'assassin', 'cassette', 'lassie',
+    'scunthorpe', 'cockatoo', 'cockpit', 'cocktail', 'peacock', 'hancock',
+    'cumulative', 'document', 'circumvent', 'cucumber',
+    'therapist', 'manslaughter', 'penisland',
+    'shoehorn', 'shoe', 'shoes', 'horseshoe',
+    'dickens', 'benedict',
+    'methane', 'method', 'something', 'methodist',
+    'afar', 'after', 'afternoon', 'affair', 'affect', 'afford',
+];
+
+// Leet speak character map for normalization
+const LEET_MAP = {
+    '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't',
+    '8': 'b', '@': 'a', '$': 's',
+};
+
+function normalizeLeet(text) {
+    return text.split('').map(c => LEET_MAP[c] || c).join('');
+}
+
+function containsProfanity(text) {
+    if (!text || text.length === 0) return false;
+
+    const lower = text.toLowerCase();
+
+    // Check if the entire message is just a safe word
+    const words = lower.split(/\s+/);
+    const safeCheck = words.filter(w => !SAFE_WORDS.includes(w.replace(/[^a-z]/g, '')));
+
+    const normalized = normalizeLeet(lower);
+    // Remove spaces/special chars between letters (catches "f u c k", "f.u.c.k")
+    const stripped = normalized.replace(/[\s._\-*#@!$%^&()+=~`|\\/<>,;:'"?\[\]{}]/g, '');
+    // Remove excessive repeated chars (catches "fuuuuck")
+    const deduped = stripped.replace(/(.)\1{2,}/g, '$1$1');
+
+    const variants = [lower, normalized, stripped, deduped];
+
+    for (const variant of variants) {
+        // Check broad matches (substring)
+        for (const word of PROFANITY_BROAD) {
+            if (variant.includes(word)) {
+                // Check if this is actually a safe word
+                const cleanVariant = variant.replace(/[^a-z]/g, '');
+                let isSafe = false;
+                for (const safe of SAFE_WORDS) {
+                    if (cleanVariant.includes(safe) && safe.includes(word)) {
+                        isSafe = true;
+                        break;
+                    }
+                }
+                if (!isSafe) return true;
+            }
+        }
+
+        // Check strict matches (word boundary)
+        for (const word of PROFANITY_STRICT) {
+            const regex = new RegExp('(?:^|\\s|[^a-z])' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:$|\\s|[^a-z])', 'i');
+            if (regex.test(' ' + variant + ' ')) {
+                // Double-check it's not part of a safe word
+                let isSafe = false;
+                for (const w of words) {
+                    const clean = w.replace(/[^a-z]/g, '');
+                    if (SAFE_WORDS.includes(clean)) { isSafe = true; break; }
+                }
+                if (!isSafe) return true;
+            }
+        }
+    }
+    return false;
+}
+
+
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -229,6 +328,7 @@ app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+        if (containsProfanity(username)) return res.status(400).json({ error: 'Username contains inappropriate content' });
 
         const lowerUsername = username.toLowerCase();
 
@@ -273,6 +373,7 @@ app.post('/api/guest', (req, res) => {
     try {
         const { username } = req.body;
         if (!username) return res.status(400).json({ error: 'Missing username' });
+        if (containsProfanity(username)) return res.status(400).json({ error: 'Username contains inappropriate content' });
 
         // Generate a clean guest name and token
         const finalUsername = username.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 20);
@@ -661,6 +762,13 @@ io.on('connection', (socket) => {
         const text = data.text.trim();
         if (!text) return;
 
+        // Profanity filter for DMs
+        if (containsProfanity(text)) {
+            const warnMsg = { msgId: Math.random().toString(36).substring(2, 11), conversationId: '', sender: 'System', text: '⚠️ Message blocked by content filter. Keep it school-appropriate.', timestamp: new Date().toISOString() };
+            socket.emit('receive_dm', warnMsg);
+            return;
+        }
+
         // Create conversation ID (alphabetical order for consistency)
         const participants = [sender.toLowerCase(), receiver.toLowerCase()].sort();
         const convoId = `dm_${participants[0]}_${participants[1]}`;
@@ -703,6 +811,22 @@ io.on('connection', (socket) => {
         if (userObj) {
             const isMod = adminUsers.has(socket.id);
             const text = msgData.text.trim();
+
+            // ========== PROFANITY FILTER ==========
+            if (containsProfanity(text)) {
+                const warnMsg = {
+                    msgId: Math.random().toString(36).substring(2, 11),
+                    username: 'Gemini',
+                    text: '⚠️ Your message was blocked by the content filter. Please keep it school-appropriate. Repeated violations may result in action by admins.',
+                    timestamp: new Date().toISOString(),
+                    id: 'gemini_bot',
+                    isAdmin: false,
+                    isBot: true,
+                };
+                socket.emit('chat_message', warnMsg);
+                console.log(`[FILTER] Blocked message from ${userObj.username}: "${text.substring(0, 50)}..."`);
+                return;
+            }
 
             // ========== COMMAND SYSTEM (!commands and /commands) ==========
             if (text.startsWith('!') || text.startsWith('/')) {
