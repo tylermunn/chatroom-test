@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeCount = document.getElementById('active-count');
     const navCount = document.getElementById('nav-count');
 
-    const currentDatetime = document.getElementById('current-datetime');
+    const currentDatetime = document.getElementById('current-daantetime');
     const myAvatar = document.getElementById('my-avatar');
 
     // Admin DOM Elements

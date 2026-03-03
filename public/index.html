@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>munn.fun - Chat Dashboard</title>
+    <title>munn.fun - Gone but never forgotten</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
@@ -15,40 +15,12 @@
             background-image: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
         }
 
-        .crypto-panel {
+        .terminal-panel {
             background: rgba(10, 10, 12, 0.8);
             border: 1px solid rgba(0, 255, 204, 0.2);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
-        }
-
-        .app-tile {
-            transition: all 0.2s ease-in-out;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .app-tile::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.8), transparent);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .app-tile:hover {
-            transform: translateY(-2px);
-            border-color: rgba(0, 255, 204, 0.6);
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
-        }
-
-        .app-tile:hover::before {
-            opacity: 1;
         }
 
         .neon-text {
@@ -68,233 +40,223 @@
             pointer-events: none;
             z-index: 50;
         }
+
+        .ascii-art {
+            white-space: pre;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .typing-effect {
+            overflow: hidden;
+            border-right: .15em solid #00ffcc;
+            white-space: nowrap;
+            margin: 0 auto;
+            letter-spacing: .15em;
+            animation:
+                typing 3.5s steps(40, end),
+                blink-caret .75s step-end infinite;
+        }
+
+        @keyframes typing {
+            from {
+                width: 0
+            }
+
+            to {
+                width: 100%
+            }
+        }
+
+        @keyframes blink-caret {
+
+            from,
+            to {
+                border-color: transparent
+            }
+
+            50% {
+                border-color: #00ffcc;
+            }
+        }
     </style>
 </head>
 
-<body class="min-h-screen relative overflow-x-hidden">
+<body class="min-h-screen relative overflow-x-hidden flex flex-col items-center justify-center p-6">
     <div class="scanlines"></div>
+
     <!-- Abstract Background Lights -->
     <div class="fixed inset-0 pointer-events-none z-0">
-        <div class="absolute top-[20%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#00ffcc]/5 blur-[150px]"></div>
-        <div class="absolute bottom-[-10%] right-[10%] w-[30%] h-[30%] rounded-full bg-[#ff00a0]/5 blur-[150px]"></div>
+        <div class="absolute top-[20%] left-[20%] w-[30%] h-[30%] rounded-full bg-[#00ffcc]/5 blur-[150px]"></div>
+        <div class="absolute bottom-[20%] right-[20%] w-[20%] h-[20%] rounded-full bg-indigo-500/5 blur-[150px]"></div>
     </div>
 
-    <!-- Header -->
-    <header class="relative z-10 border-b border-[#00ffcc]/20 bg-[#050505]/90 backdrop-blur-md sticky top-0">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-8 h-8 flex items-center justify-center text-[#00ffcc] font-bold border border-[#00ffcc]/50 bg-[#00ffcc]/10 shadow-[0_0_10px_rgba(0,255,204,0.2)]">
-                    M.F</div>
-                <h1 class="font-bold text-xl tracking-widest text-zinc-100 uppercase uppercase neon-text">munn &middot;
-                    fun
-                </h1>
+    <div
+        class="terminal-panel rounded-xl max-w-3xl w-full z-10 overflow-hidden relative border-t-0 border-l border-r border-b">
+        <!-- Terminal Header -->
+        <div class="bg-zinc-900 border-b border-[#00ffcc]/20 px-4 py-2 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+            </div>
+            <div class="text-xs text-zinc-500 font-mono tracking-widest uppercase">system_halt.log</div>
+            <button id="admin-login-btn" class="text-xs text-zinc-600 hover:text-[#00ffcc] transition-colors"
+                title="Bypass Override">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Terminal Content -->
+        <div class="p-8 font-mono text-sm md:text-base leading-relaxed text-zinc-300">
+            <div class="text-[#00ffcc]/80 ascii-art mb-8 font-bold text-xs md:text-sm">
+                _____ .___ ________
+                / _ \ | | / _____/
+                / /_\ \| |/ \ ___
+                / | \ |\ \_\ \
+                \____|__ /___| \______ /
+                \/ \/
+                _____ ____ __ _______ ____ _____ ____ ___ _______
+                / ___/ / __ `// ___/ _ \ / __ \ / ___// __ \__// ___/ _ \
+                / /__ / /_/ // / / __/ / /_/ / / /__ / /_/ / / / / __/
+                \___/ \__,_//_/ \___/ \____/ \___/ \____/ /_/ \___/
+
             </div>
 
-            <div class="flex items-center gap-4 text-[#00ffcc]/70">
-                <div id="nav-time" class="hidden md:block text-sm font-bold tracking-widest uppercase"></div>
-                <!-- Admin Settings Gear -->
-                <button id="admin-gear"
-                    class="hover:text-white hover:bg-zinc-800 p-2 rounded-full relative transition-colors text-[#00ffcc]/50 hover:text-[#00ffcc]"
-                    title="Admin Panel">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-black uppercase tracking-[0.2em] neon-text mb-4">munn.fun</h1>
+                <div
+                    class="inline-block border border-[#00ffcc]/30 bg-[#00ffcc]/5 px-6 py-2 rounded text-[#00ffcc] font-bold tracking-widest text-xs mb-6">
+                    [ OFFLINE ]
+                </div>
+
+                <p class="text-zinc-500 mb-2 uppercase tracking-widest text-xs">Dates of Operation:</p>
+                <div class="text-indigo-400 font-bold tracking-widest">
+                    FEB 27, 2026 - MAR 03, 2026
+                </div>
+            </div>
+
+            <div class="max-w-md mx-auto border-t border-zinc-800 pt-8 text-center text-zinc-400">
+                <p class="mb-4 text-emerald-300/80 italic font-medium">"Gone, but never forgotten."</p>
+                <div class="typing-effect mt-8 text-[#00ffcc] text-xs uppercase font-bold text-center inline-block">
+                    [ CONNECTION_TERMINATED ]
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Auth Modal -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="terminal-panel max-w-sm w-full rounded-xl p-6 border-t-2 border-[#00ffcc]/50">
+            <h2 class="text-[#00ffcc] text-lg font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
+                System Override
+            </h2>
+            <p class="text-xs text-zinc-500 mb-6 font-mono leading-relaxed">Enter administrator credentials to bypass
+                the network lock.</p>
+
+            <div id="auth-error"
+                class="hidden text-red-500 text-xs font-bold bg-red-500/10 border border-red-500/20 p-3 rounded mb-4 text-center">
+            </div>
+
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Username</label>
+                    <input type="text" id="username"
+                        class="w-full bg-[#0a0a0c] border border-zinc-800 rounded p-2 text-white font-mono text-sm focus:border-[#00ffcc] focus:outline-none transition-colors"
+                        autocomplete="off">
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Passphrase</label>
+                    <input type="password" id="password"
+                        class="w-full bg-[#0a0a0c] border border-zinc-800 rounded p-2 text-white font-mono text-sm focus:border-[#00ffcc] focus:outline-none transition-colors">
+                </div>
+                <button type="submit" id="submit-btn"
+                    class="w-full bg-[#00ffcc]/10 hover:bg-[#00ffcc]/20 border border-[#00ffcc]/30 hover:border-[#00ffcc]/50 text-[#00ffcc] uppercase tracking-widest font-bold text-xs py-3 rounded transition-all mt-6">
+                    Initiate Bypass
                 </button>
-                <div
-                    class="w-8 h-8 border border-[#00ffcc]/30 bg-[#00ffcc]/5 flex items-center justify-center animate-pulse">
-                    <div class="w-3 h-3 bg-[#00ffcc] shadow-[0_0_8px_#00ffcc]"></div>
-                </div>
-            </div>
+            </form>
+            <button id="close-modal"
+                class="w-full text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest mt-4">Cancel</button>
         </div>
-    </header>
-
-    <main class="relative z-10 max-w-7xl mx-auto px-6 py-16 flex flex-col items-center">
-        <!-- Hero Section -->
-        <div class="text-center mb-16 max-w-2xl">
-            <div
-                class="inline-flex items-center gap-2 px-3 py-1 bg-[#00ffcc]/5 border border-[#00ffcc]/30 text-[#00ffcc] text-xs font-bold uppercase tracking-widest mb-6">
-                <span class="w-2 h-2 bg-[#00ffcc] animate-ping"></span>
-                Connect Platform
-            </div>
-            <h2 class="text-3xl md:text-5xl font-bold text-white tracking-widest mb-4 uppercase">munn <span
-                    class="neon-text">&middot; fun</span></h2>
-            <p class="text-lg text-zinc-400 leading-relaxed max-w-lg mx-auto">Select an app to communicate or submit
-                feedback.</p>
-        </div>
-
-        <!-- Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
-
-            <!-- Chat App Tile -->
-            <a href="/chat.html" class="crypto-panel app-tile group block p-6">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <span class="text-6xl font-bold text-[#00ffcc] opacity-20">01</span>
-                </div>
-                <div
-                    class="w-12 h-12 bg-[#00ffcc]/10 flex items-center justify-center text-[#00ffcc] border border-[#00ffcc]/30 mb-6">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-2 uppercase tracking-widest">CHAT</h3>
-                <p class="text-sm text-zinc-400 leading-relaxed mb-6">Real-time chat room.
-                    *Authentication Required*.</p>
-                <div
-                    class="flex items-center text-[#00ffcc] text-sm font-bold uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-                    > Open Chat <span class="animate-pulse ml-1">_</span>
-                </div>
-            </a>
-
-            <!-- DropBox / Feature Requests -->
-            <a href="/suggestions.html" class="crypto-panel app-tile group block p-6">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <span class="text-6xl font-bold text-[#ff00a0] opacity-20">02</span>
-                </div>
-                <div
-                    class="w-12 h-12 bg-[#ff00a0]/10 flex items-center justify-center text-[#ff00a0] border border-[#ff00a0]/30 mb-6">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-2 uppercase tracking-widest">SUGGESTIONS</h3>
-                <p class="text-sm text-zinc-400 leading-relaxed mb-6">Submit feature requests and bug reports
-                    to the team.</p>
-                <div
-                    class="flex items-center text-[#ff00a0] text-sm font-bold uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-                    > Open Uplink <span class="animate-pulse ml-1">_</span>
-                </div>
-            </a>
-
-            <!-- System Updates -->
-            <a href="/updates.html" class="crypto-panel app-tile group block p-6">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <span class="text-6xl font-bold text-yellow-400 opacity-20">03</span>
-                </div>
-                <div
-                    class="w-12 h-12 bg-yellow-400/10 flex items-center justify-center text-yellow-400 border border-yellow-400/30 mb-6">
-                    <svg class="w-6 h-6" fill="fill" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-2 uppercase tracking-widest">SYSTEM UPDATES</h3>
-                <p class="text-sm text-zinc-400 leading-relaxed mb-6">View latest developer changes, bug fixes and
-                    source insights.</p>
-                <div
-                    class="flex items-center text-yellow-500 text-sm font-bold uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-                    > View Logs <span class="animate-pulse ml-1">_</span>
-                </div>
-            </a>
-
-            <!-- MunnyCoin Widget -->
-            <div class="crypto-panel group block p-6 relative overflow-hidden bg-black border-zinc-800">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="flex gap-2">
-                        <div class="w-3 h-3 bg-zinc-800 rounded-sm"></div>
-                        <div class="w-3 h-3 bg-zinc-700 rounded-sm"></div>
-                        <div class="w-3 h-3 bg-[#00ffcc] shadow-[0_0_8px_#00ffcc] rounded-sm animate-pulse"></div>
-                    </div>
-                </div>
-                <div class="flex flex-col items-center justify-center">
-                    <span class="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">MunnyCoin</span>
-                    <h3 class="text-[34px] font-bold text-zinc-100 uppercase tracking-tighter" id="munn-price">
-                        $0.0000
-                    </h3>
-                    <div id="munn-change"
-                        class="text-sm font-bold mt-1 tracking-widest bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
-                        +0.00%
-                    </div>
-                </div>
-            </div>
-
-            <!-- Admin Dashboard Tile -->
-            <a href="/admin.html" class="crypto-panel app-tile group block p-6">
-                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <span class="text-6xl font-bold text-red-500 opacity-20">04</span>
-                </div>
-                <div
-                    class="w-12 h-12 bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/30 mb-6">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                        </path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-2 uppercase tracking-widest">ADMIN</h3>
-                <p class="text-sm text-zinc-400 leading-relaxed mb-6">Server dashboard, user management & real-time
-                    analytics.
-                    *PIN Required*.</p>
-                <div
-                    class="flex items-center text-red-400 text-sm font-bold uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-                    > Access Panel <span class="animate-pulse ml-1">_</span>
-                </div>
-            </a>
-
-        </div>
-    </main>
+    </div>
 
     <script>
-        // Set up the internal time loop
-        function updateTime() {
-            const now = new Date();
-            document.getElementById('nav-time').textContent = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) +
-                ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-        updateTime();
-        setInterval(updateTime, 60000);
+        const bypassLink = document.getElementById('admin-login-btn');
+        const modal = document.getElementById('auth-modal');
+        const closeBtn = document.getElementById('close-modal');
+        const form = document.getElementById('auth-form');
+        const errorEl = document.getElementById('auth-error');
 
-        // Fetch MunnyCoin internal ticker
-        async function fetchMunnCoin() {
+        bypassLink.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('username').focus();
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            errorEl.classList.add('hidden');
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const btn = document.getElementById('submit-btn');
+
+            if (!username || !password) return;
+
+            btn.textContent = '...VERIFYING...';
+            btn.disabled = true;
+
             try {
-                const res = await fetch('/api/munn-coin');
-                const data = await res.json();
-                document.getElementById('munn-price').textContent = '$' + data.price;
-
-                const changeEl = document.getElementById('munn-change');
-                const changeNum = parseFloat(data.change24h);
-                if (changeNum >= 0) {
-                    changeEl.textContent = '+' + data.change24h + '%';
-                    changeEl.className = 'text-sm font-bold mt-1 tracking-widest bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20';
-                } else {
-                    changeEl.textContent = data.change24h + '%';
-                    changeEl.className = 'text-sm font-bold mt-1 tracking-widest bg-red-500/10 text-red-400 px-3 py-1 rounded-full border border-red-500/20';
-                }
-            } catch (e) { console.error('MUNN ticker offline', e); }
-        }
-        fetchMunnCoin();
-        setInterval(fetchMunnCoin, 5000);
-
-        // Admin gear handler
-        document.getElementById('admin-gear').addEventListener('click', async () => {
-            const existingToken = sessionStorage.getItem('admin_token');
-            if (existingToken) {
-                window.location.href = '/admin.html';
-                return;
-            }
-            const pin = prompt('Enter Admin PIN:');
-            if (!pin) return;
-            try {
-                const res = await fetch('/api/admin/verify', {
+                const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin })
+                    body: JSON.stringify({ username, password })
                 });
+
                 const data = await res.json();
-                if (!res.ok) { alert('Invalid PIN'); return; }
-                sessionStorage.setItem('admin_token', data.adminToken);
-                window.location.href = '/admin.html';
-            } catch (e) { alert('Authentication failed'); }
+
+                if (!res.ok) {
+                    errorEl.textContent = 'ACCESS DENIED';
+                    errorEl.classList.remove('hidden');
+                    btn.textContent = 'Initiate Bypass';
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Store bypass token and redirect to actual app selection page
+                sessionStorage.setItem('token', data.token);
+                sessionStorage.setItem('username', data.user.username);
+                sessionStorage.setItem('bypass_active', 'true');
+
+                window.location.href = '/dashboard.html';
+
+            } catch (err) {
+                errorEl.textContent = 'COULD NOT REACH SERVER';
+                errorEl.classList.remove('hidden');
+                btn.textContent = 'Initiate Bypass';
+                btn.disabled = false;
+            }
         });
+
+        // If trying to access index but already bypassed in session, send to dashboard
+        if (sessionStorage.getItem('bypass_active') === 'true' && sessionStorage.getItem('token')) {
+            window.location.href = '/dashboard.html';
+        }
     </script>
 </body>
 
