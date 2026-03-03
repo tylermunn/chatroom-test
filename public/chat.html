@@ -314,13 +314,58 @@
                 </div>
 
                 <!-- Input Area -->
-                <div class="px-3 md:px-4 pb-3 pt-2 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto">
+                <div class="px-3 md:px-4 pb-3 pt-2 bg-[#121214] border-t border-zinc-800 shrink-0 mt-auto relative">
+                    <!-- Emoji Picker Popup -->
+                    <div id="emoji-picker"
+                        class="hidden absolute bottom-full left-3 md:left-4 mb-2 w-[320px] max-h-[340px] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
+                        <div id="emoji-tabs"
+                            class="flex border-b border-zinc-800 px-2 pt-2 gap-1 shrink-0 overflow-x-auto">
+                        </div>
+                        <div id="emoji-grid" class="flex-1 overflow-y-auto p-2 grid grid-cols-8 gap-1 chat-scroll">
+                        </div>
+                    </div>
+
+                    <!-- GIF Search Popup -->
+                    <div id="gif-picker"
+                        class="hidden absolute bottom-full left-3 md:left-4 mb-2 w-[360px] max-h-[400px] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
+                        <div class="flex items-center gap-2 p-3 border-b border-zinc-800 shrink-0">
+                            <svg class="w-4 h-4 text-zinc-500 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input id="gif-search-input" type="text" placeholder="Search GIFs..." autocomplete="off"
+                                class="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none" />
+                        </div>
+                        <div id="gif-grid" class="flex-1 overflow-y-auto p-2 chat-scroll"
+                            style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                            <p class="text-zinc-500 text-xs text-center col-span-2 py-8 font-mono">Type to search for
+                                GIFs</p>
+                        </div>
+                        <div class="px-3 py-1.5 border-t border-zinc-800 flex items-center justify-end shrink-0">
+                            <span class="text-[9px] text-zinc-600 font-mono uppercase tracking-wider">Powered by
+                                Tenor</span>
+                        </div>
+                    </div>
+
                     <form id="chat-form" class="relative max-w-4xl mx-auto">
                         <div
                             class="flex items-end bg-zinc-900/80 border border-zinc-700/80 rounded-2xl overflow-hidden focus-within:border-indigo-500/70 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all shadow-lg">
+                            <!-- Emoji & GIF Buttons -->
+                            <div class="flex items-center shrink-0 pl-2 pb-2.5 gap-0.5">
+                                <button type="button" id="emoji-btn" title="Emoji"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-yellow-400 transition-colors text-lg">
+                                    😊
+                                </button>
+                                <button type="button" id="gif-btn" title="GIF Search"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-indigo-400 transition-colors">
+                                    <span
+                                        class="text-[10px] font-black tracking-tight border border-current rounded px-1 py-px leading-none">GIF</span>
+                                </button>
+                            </div>
                             <textarea id="message-input" autocomplete="off" rows="1"
                                 placeholder="Message the group... (@gemini for AI)"
-                                class="flex-1 py-3 px-4 bg-transparent focus:outline-none text-[14px] text-zinc-100 placeholder-zinc-500 font-medium w-full"></textarea>
+                                class="flex-1 py-3 px-2 bg-transparent focus:outline-none text-[14px] text-zinc-100 placeholder-zinc-500 font-medium w-full"></textarea>
                             <div class="p-1.5 shrink-0 self-end">
                                 <button type="submit"
                                     class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl w-9 h-9 font-bold transition-all text-sm flex items-center justify-center shadow-md hover:shadow-indigo-500/25 active:scale-95">

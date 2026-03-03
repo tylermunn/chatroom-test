@@ -576,6 +576,147 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ============ EMOJI PICKER ============
+    const emojiBtn = document.getElementById('emoji-btn');
+    const emojiPicker = document.getElementById('emoji-picker');
+    const emojiGrid = document.getElementById('emoji-grid');
+    const emojiTabs = document.getElementById('emoji-tabs');
+
+    const emojiCategories = {
+        '😊': ['😀', '😃', '😄', '😁', '😆', '😂', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐'],
+        '👋': ['👋', '🤚', '🖐', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💪', '🦾', '🖕'],
+        '❤️': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️', '💯', '💢', '💥', '💫', '💦', '💨', '🕳', '💣', '💬', '💤'],
+        '🐶': ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🪲', '🐢', '🐍', '🦎', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈'],
+        '🍕': ['🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🫔', '🥙', '🧆', '🥚', '🍳', '🥘', '🍲', '🫕', '🥣', '🥗', '🍿', '🧈', '🧂', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', '🥠', '🥡', '🦀', '🦞', '🦐', '🦑', '🦪', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮'],
+        '⚽': ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸', '🥌', '🎿', '⛷', '🏂', '🪂', '🏋️', '🤸', '🤺', '⛹️', '🤾', '🏌️', '🏇', '🧘', '🏄', '🏊', '🤽', '🚣', '🧗', '🚵', '🚴'],
+        '🚗': ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍', '🛵', '🚲', '🛴', '🛹', '🛼', '🚁', '🛸', '🚀', '🛩', '✈️', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🛳', '⛴', '🚢', '⛵', '🚤', '🛥', '⛽', '🚧', '🚦', '🚥', '🗺', '🗿', '🗽', '🗼', '🏰', '🏯', '🏟', '🎡', '🎢', '🎠'],
+        '💡': ['💡', '🔦', '🏮', '🪔', '📱', '💻', '⌨️', '🖥', '🖨', '🖱', '🖲', '🕹', '🗜', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽', '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙', '🎚', '🎛', '🧭', '⏱', '⏲', '⏰', '🕰', '⌛', '📡', '🔋', '🔌', '🧲', '🪜', '🧰', '🔧', '🔩', '⚙️', '🧱', '🔬', '🔭', '📐', '📏'],
+    };
+
+    const categoryKeys = Object.keys(emojiCategories);
+    let activeEmojiCat = categoryKeys[0];
+
+    function renderEmojiTabs() {
+        emojiTabs.innerHTML = '';
+        categoryKeys.forEach(key => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = key;
+            btn.className = `text-lg px-2 py-1 rounded-md transition-colors ${key === activeEmojiCat ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'}`;
+            btn.addEventListener('click', () => {
+                activeEmojiCat = key;
+                renderEmojiTabs();
+                renderEmojiGrid();
+            });
+            emojiTabs.appendChild(btn);
+        });
+    }
+
+    function renderEmojiGrid() {
+        emojiGrid.innerHTML = '';
+        const emojis = emojiCategories[activeEmojiCat] || [];
+        emojis.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = emoji;
+            btn.className = 'text-xl w-9 h-9 flex items-center justify-center rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer active:scale-90';
+            btn.addEventListener('click', () => {
+                messageInput.value += emoji;
+                messageInput.focus();
+                messageInput.dispatchEvent(new Event('input'));
+            });
+            emojiGrid.appendChild(btn);
+        });
+    }
+
+    if (emojiBtn && emojiPicker) {
+        renderEmojiTabs();
+        renderEmojiGrid();
+
+        emojiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = !emojiPicker.classList.contains('hidden');
+            emojiPicker.classList.toggle('hidden');
+            if (gifPicker) gifPicker.classList.add('hidden');
+            if (!isOpen) emojiGrid.scrollTop = 0;
+        });
+    }
+
+    // ============ GIF PICKER ============
+    const gifBtn = document.getElementById('gif-btn');
+    const gifPicker = document.getElementById('gif-picker');
+    const gifGrid = document.getElementById('gif-grid');
+    const gifSearchInput = document.getElementById('gif-search-input');
+    let gifSearchTimeout = null;
+
+    async function searchGifs(query) {
+        gifGrid.innerHTML = '<div class="col-span-2 flex justify-center py-8"><div class="w-6 h-6 rounded-full border-t-2 border-l-2 border-indigo-500 animate-spin"></div></div>';
+        try {
+            const res = await fetch(`/api/gifs?q=${encodeURIComponent(query || 'trending')}&limit=20`);
+            const data = await res.json();
+            gifGrid.innerHTML = '';
+
+            if (!data.gifs || data.gifs.length === 0) {
+                gifGrid.innerHTML = '<p class="text-zinc-500 text-xs text-center col-span-2 py-8 font-mono">No GIFs found</p>';
+                return;
+            }
+
+            data.gifs.forEach(gif => {
+                const img = document.createElement('img');
+                img.src = gif.preview;
+                img.alt = gif.title;
+                img.className = 'w-full rounded-lg cursor-pointer hover:opacity-80 transition-opacity hover:ring-2 hover:ring-indigo-500 object-cover';
+                img.style.height = '120px';
+                img.loading = 'lazy';
+                img.addEventListener('click', () => {
+                    if (socket) {
+                        socket.emit('chat_message', { text: `[gif:${gif.url}]` });
+                        gifPicker.classList.add('hidden');
+                        gifSearchInput.value = '';
+                    }
+                });
+                gifGrid.appendChild(img);
+            });
+        } catch (e) {
+            gifGrid.innerHTML = '<p class="text-red-400 text-xs text-center col-span-2 py-8">Failed to load GIFs</p>';
+        }
+    }
+
+    if (gifBtn && gifPicker) {
+        gifBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = !gifPicker.classList.contains('hidden');
+            gifPicker.classList.toggle('hidden');
+            if (emojiPicker) emojiPicker.classList.add('hidden');
+            if (!isOpen) {
+                gifSearchInput.value = '';
+                searchGifs('trending');
+                setTimeout(() => gifSearchInput.focus(), 50);
+            }
+        });
+
+        gifSearchInput.addEventListener('input', () => {
+            clearTimeout(gifSearchTimeout);
+            gifSearchTimeout = setTimeout(() => {
+                const q = gifSearchInput.value.trim();
+                searchGifs(q || 'trending');
+            }, 400);
+        });
+    }
+
+    // Close pickers on outside click
+    document.addEventListener('click', (e) => {
+        if (emojiPicker && !emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+            emojiPicker.classList.add('hidden');
+        }
+        if (gifPicker && !gifPicker.contains(e.target) && e.target !== gifBtn && !gifBtn?.contains(e.target)) {
+            gifPicker.classList.add('hidden');
+        }
+    });
+    // Prevent picker clicks from closing themselves
+    if (emojiPicker) emojiPicker.addEventListener('click', e => e.stopPropagation());
+    if (gifPicker) gifPicker.addEventListener('click', e => e.stopPropagation());
+
     // Setup Socket Listeners
     function setupSocketListeners() {
         if (!socket) return;
@@ -750,11 +891,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${badgeHTML}
                         </span>
                         <span class="text-[10px] font-mono text-zinc-600">${timeString}</span>
-                        ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[9px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-600'}">REP: ${msg.score}</span>` : ''}
+                    ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[9px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-600'}">REP: ${msg.score}</span>` : ''}
                     </div>
-                    <div class="text-[13.5px] leading-normal text-left whitespace-pre-wrap ${isMe ? 'bg-indigo-600 px-2.5 py-1 text-white rounded-xl rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-2.5 py-1.5 border border-indigo-500/20 text-indigo-100 rounded-xl rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
+                    ${msg.text.match(/^\[gif:(https?:\/\/[^\]]+)\]$/)
+                ? `<img src="${msg.text.match(/^\[gif:(https?:\/\/[^\]]+)\]$/)[1]}" alt="GIF" class="rounded-xl max-w-[280px] max-h-[220px] object-contain cursor-pointer shadow-sm" style="width: fit-content;" loading="lazy" />`
+                : `<div class="text-[13.5px] leading-normal text-left whitespace-pre-wrap ${isMe ? 'bg-indigo-600 px-2.5 py-1 text-white rounded-xl rounded-tr-sm shadow-sm' : msg.isAdmin ? 'bg-zinc-800/90 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm border-l-2 border-yellow-500' : msg.isBot ? 'bg-indigo-500/5 px-2.5 py-1.5 border border-indigo-500/20 text-indigo-100 rounded-xl rounded-tl-sm shadow-sm' : 'bg-zinc-800/70 border border-zinc-700/40 px-2.5 py-1 text-zinc-100 rounded-xl rounded-tl-sm shadow-sm'} font-normal" style="width: fit-content; max-width: 100%; word-break: break-word;">
                         ${escapeHTML(msg.text)}
-                    </div>
+                    </div>`
+            }
                     
                     <div class="mt-px flex gap-1.5 items-center h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
                         ${!isMe && !msg.isBot ? `

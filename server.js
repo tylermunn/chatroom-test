@@ -96,6 +96,35 @@ app.get('/api/source/:file', (req, res) => {
     }
 });
 
+// GIF Search Proxy (Tenor API)
+const TENOR_API_KEY = process.env.TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'; // Free public key
+app.get('/api/gifs', async (req, res) => {
+    try {
+        const query = req.query.q || 'trending';
+        const limit = req.query.limit || 20;
+        const url = query === 'trending'
+            ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=${limit}&media_filter=tinygif,gif&contentfilter=medium`
+            : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&media_filter=tinygif,gif&contentfilter=medium`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const gifs = (data.results || []).map(g => ({
+            id: g.id,
+            title: g.title || '',
+            preview: g.media_formats?.tinygif?.url || g.media_formats?.gif?.url || '',
+            url: g.media_formats?.gif?.url || g.media_formats?.tinygif?.url || '',
+            width: g.media_formats?.tinygif?.dims?.[0] || 200,
+            height: g.media_formats?.tinygif?.dims?.[1] || 150,
+        }));
+
+        res.json({ gifs });
+    } catch (e) {
+        console.error('Tenor GIF Error:', e);
+        res.status(500).json({ error: 'GIF search failed' });
+    }
+});
+
 // Neural Link endpoint
 app.post('/api/suggestions', (req, res) => {
     try {
