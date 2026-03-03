@@ -25,6 +25,14 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 // Track server start time for uptime calc
 const SERVER_START_TIME = Date.now();
 
+// Email transporter — created once at startup if credentials are present
+const emailTransporter = (process.env.EMAIL_USER && process.env.EMAIL_PASS)
+    ? nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    })
+    : null;
+
 // Track total messages sent (in-memory, persisted to DB)
 let totalMessagesSent = 0;
 
@@ -107,7 +115,7 @@ const TENOR_API_KEY = process.env.TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQ
 app.get('/api/gifs', async (req, res) => {
     try {
         const query = req.query.q || 'trending';
-        const limit = req.query.limit || 20;
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 50);
         const url = query === 'trending'
             ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=${limit}&media_filter=tinygif,gif&contentfilter=medium`
             : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&media_filter=tinygif,gif&contentfilter=medium`;
@@ -156,16 +164,8 @@ app.post('/api/suggestions', (req, res) => {
             // Add to chat history
             pushHistory('system', sysMsg);
 
-            // Send Email Notification if env vars exist
-            if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-                const transporter = nodemailer.createTransport({
-                    service: 'gmail', // Standard gmail setup
-                    auth: {
-                        user: process.env.EMAIL_USER,
-                        pass: process.env.EMAIL_PASS
-                    }
-                });
-
+            // Send Email Notification if transporter is configured
+            if (emailTransporter) {
                 const mailOptions = {
                     from: process.env.EMAIL_USER,
                     to: 'tyjmunn@gmail.com',
@@ -174,7 +174,7 @@ app.post('/api/suggestions', (req, res) => {
                 };
 
                 try {
-                    await transporter.sendMail(mailOptions);
+                    await emailTransporter.sendMail(mailOptions);
                 } catch (emailErr) {
                     console.error("Failed to send email notification:", emailErr);
                 }
@@ -199,6 +199,7 @@ app.post('/api/register', async (req, res) => {
         const lowerUsername = username.toLowerCase();
 
         db.get('SELECT id FROM users WHERE LOWER(username) = ?', [lowerUsername], async (err, row) => {
+            if (err) return res.status(500).json({ error: 'DB error' });
             if (row) return res.status(400).json({ error: 'Username exists' });
 
             const hash = await bcrypt.hash(password, 10);
@@ -242,6 +243,7 @@ app.post('/api/guest', (req, res) => {
 
         // Generate a clean guest name and token
         const finalUsername = username.replace(/[^a-zA-Z0-9_\-]/g, '').substring(0, 20);
+        if (!finalUsername) return res.status(400).json({ error: 'Invalid username' });
         const token = jwt.sign(
             { id: 'guest_' + Date.now(), username: finalUsername, role: 'user', reputation: 0, isGuest: true },
             JWT_SECRET,
@@ -459,8 +461,8 @@ function pushHistory(type, data) {
     if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
 }
 
-// Simple pin for admin access
-const ADMIN_PIN = '0620';
+// Simple pin for admin access — override via ADMIN_PIN env var
+const ADMIN_PIN = process.env.ADMIN_PIN || '0620';
 const adminUsers = new Set(); // store socket.ids of admins
 const adminAttempts = new Map(); // tracking failed attempts for kicks
 
@@ -478,17 +480,21 @@ function buildRoster() {
     return roster;
 }
 
-// Initialize Gemini
+// Initialize Gemini — memoized so the client is created only once
+let _geminiClient = undefined;
 function getGeminiClient() {
+    if (_geminiClient !== undefined) return _geminiClient;
     if (process.env.GEMINI_API_KEY) {
         try {
-            return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+            _geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         } catch (e) {
             console.error("Gemini AI failed to initialize:", e);
-            return null;
+            _geminiClient = null;
         }
+    } else {
+        _geminiClient = null;
     }
-    return null;
+    return _geminiClient;
 }
 
 // Socket Authentication Middleware
@@ -542,6 +548,10 @@ io.on('connection', (socket) => {
     socket.on('chat_message', (msgData) => {
         const userObj = activeUsers.get(socket.id);
         if (userObj) {
+            // Validate message
+            if (!msgData.text || typeof msgData.text !== 'string') return;
+            if (msgData.text.length > 2000) return;
+
             const isMod = adminUsers.has(socket.id);
 
             // Check for Commands First
@@ -677,6 +687,9 @@ io.on('connection', (socket) => {
         const hasUpvoted = msg.upvoters.includes(userObj.username);
         const hasDownvoted = msg.downvoters.includes(userObj.username);
 
+        // Track old vote value to compute net reputation change
+        const oldVote = hasUpvoted ? 1 : hasDownvoted ? -1 : 0;
+
         // Remove previous vote
         if (hasUpvoted) {
             msg.score -= 1;
@@ -688,16 +701,23 @@ io.on('connection', (socket) => {
         }
 
         // Add new vote if changing
+        let newVote = 0;
         if (voteType === 1 && !hasUpvoted) {
             msg.score += 1;
             msg.upvoters.push(userObj.username);
+            newVote = 1;
         } else if (voteType === -1 && !hasDownvoted) {
             msg.score -= 1;
             msg.downvoters.push(userObj.username);
+            newVote = -1;
         }
 
+        // Net reputation delta: accounts for removing old vote and adding new one
+        const repDelta = newVote - oldVote;
+        if (repDelta === 0) return; // no actual change, skip DB update
+
         // Update DB for message author's total reputation
-        db.run('UPDATE users SET reputation_score = reputation_score + ? WHERE username = ?', [voteType, msg.username], function (err) {
+        db.run('UPDATE users SET reputation_score = reputation_score + ? WHERE username = ?', [repDelta, msg.username], function (err) {
             if (!err) {
                 // Broadcast update
                 io.emit('message_voted', { msgId, score: msg.score });
@@ -714,8 +734,9 @@ io.on('connection', (socket) => {
 
     // --- Admin Handlers (Legacy Pin vs Role) ---
     socket.on('admin_auth', (pin) => {
-        const username = activeUsers.get(socket.id);
-        if (!username) return;
+        const userObj = activeUsers.get(socket.id);
+        if (!userObj) return;
+        const username = userObj.username;
 
         if (pin === ADMIN_PIN) {
             adminUsers.add(socket.id);
