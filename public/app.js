@@ -739,8 +739,14 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('message_voted', (data) => {
             const el = document.getElementById(`score-${data.msgId}`);
             if (el) {
-                el.textContent = `REP: ${data.score}`;
-                el.className = `text-[10px] whitespace-nowrap font-bold ${data.score > 0 ? 'text-emerald-500' : data.score < 0 ? 'text-red-500' : 'text-zinc-500'}`;
+                if (data.score > 0) {
+                    el.textContent = `❤️ ${data.score}`;
+                    el.className = 'text-[10px] whitespace-nowrap font-bold text-rose-400';
+                    el.classList.remove('hidden');
+                } else {
+                    el.textContent = '';
+                    el.classList.add('hidden');
+                }
             }
         });
 
@@ -891,7 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${badgeHTML}
                         </span>
                         <span class="text-[10px] font-mono text-zinc-600">${timeString}</span>
-                    ${msg.score !== undefined && !msg.isBot ? `<span id="score-${msg.msgId}" class="text-[9px] whitespace-nowrap font-bold ${msg.score > 0 ? 'text-emerald-500' : msg.score < 0 ? 'text-red-500' : 'text-zinc-600'}">REP: ${msg.score}</span>` : ''}
+                    ${msg.score !== undefined && !msg.isBot && msg.score > 0 ? `<span id="score-${msg.msgId}" class="text-[10px] whitespace-nowrap font-bold text-rose-400">❤️ ${msg.score}</span>` : `<span id="score-${msg.msgId}" class="text-[10px] whitespace-nowrap font-bold text-zinc-600 hidden"></span>`}
                     </div>
                     ${msg.text.match(/^\[gif:(https?:\/\/[^\]]+)\]$/)
                 ? `<img src="${msg.text.match(/^\[gif:(https?:\/\/[^\]]+)\]$/)[1]}" alt="GIF" class="rounded-xl max-w-[280px] max-h-[220px] object-contain cursor-pointer shadow-sm" style="width: fit-content;" loading="lazy" />`
@@ -902,8 +908,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     <div class="mt-px flex gap-1.5 items-center h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
                         ${!isMe && !msg.isBot ? `
-                        <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[10px] uppercase tracking-wider font-bold text-emerald-500/70 hover:text-emerald-400 hover:bg-emerald-500/10 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>UP</button>
-                        <button onclick="voteMessage('${msg.msgId}', -1)" class="text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>DN</button>
+                        <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[11px] font-bold text-zinc-500 hover:text-rose-400 px-1.5 py-0.5 rounded transition-colors flex items-center gap-1 hover:bg-rose-500/10"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>Like</button>
                         ` : ''}
                         ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors">DEL</button>` : ''}
                     </div>
