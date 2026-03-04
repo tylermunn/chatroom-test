@@ -196,7 +196,9 @@ db.serialize(() => {
     )`);
 
     // DB index on LOWER(username) for fast case-insensitive lookups
-    db.run(`CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`, (err) => {
+        if (err) console.error('Could not create username index:', err.message);
+    });
 
     // Preload avatar cache
     db.all('SELECT username, avatar FROM users WHERE avatar IS NOT NULL', [], (err, rows) => {
