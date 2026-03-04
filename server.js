@@ -7,6 +7,8 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
@@ -193,6 +195,9 @@ db.serialize(() => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // DB index on LOWER(username) for fast case-insensitive lookups
+    db.run(`CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`);
+
     // Preload avatar cache
     db.all('SELECT username, avatar FROM users WHERE avatar IS NOT NULL', [], (err, rows) => {
         if (!err && rows) {
@@ -202,7 +207,19 @@ db.serialize(() => {
     });
 });
 
+// Security headers via helmet (CSP disabled for CDN scripts)
+app.use(helmet({ contentSecurityPolicy: false }));
+
 app.use(express.json({ limit: '1mb' }));
+
+// Rate limiter for auth endpoints
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -236,9 +253,10 @@ app.get('/api/source/:file', (req, res) => {
 });
 
 // GIF Search Proxy (Tenor API)
-const TENOR_API_KEY = process.env.TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'; // Free public key
+const TENOR_API_KEY = process.env.TENOR_API_KEY;
 app.get('/api/gifs', async (req, res) => {
     try {
+        if (!TENOR_API_KEY) return res.status(503).json({ error: 'GIF service not configured' });
         const query = req.query.q || 'trending';
         const limit = req.query.limit || 20;
         const url = query === 'trending'
@@ -324,7 +342,7 @@ app.post('/api/suggestions', (req, res) => {
 });
 
 // Auth endpoints
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
@@ -350,7 +368,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', authLimiter, (req, res) => {
     try {
         const { username, password } = req.body;
         const lowerUsername = (username || '').toLowerCase();
@@ -449,11 +467,11 @@ app.get('/api/users/status', (req, res) => {
         if (err) return res.status(500).json({ error: 'DB error' });
 
         // Get active usernames
-        const activeUsernames = new Set(Array.from(activeUsers.values()).map(u => u.username));
+        const activeSet = new Set(Array.from(activeUsers.values()).map(u => u.username));
 
         const mappedRows = rows.map(r => ({
             ...r,
-            isActive: activeUsernames.has(r.username)
+            isActive: activeSet.has(r.username)
         }));
 
         res.json(mappedRows);
@@ -461,7 +479,7 @@ app.get('/api/users/status', (req, res) => {
 });
 
 // Admin PIN Verification endpoint (for non-socket pages)
-app.post('/api/admin/verify', (req, res) => {
+app.post('/api/admin/verify', authLimiter, (req, res) => {
     const { pin } = req.body;
     if (pin === ADMIN_PIN) {
         const adminToken = jwt.sign({ isAdmin: true, timestamp: Date.now() }, JWT_SECRET, { expiresIn: '4h' });
@@ -601,10 +619,18 @@ const activeUsers = new Map();
 
 // Store recent message history
 let messageHistory = [];
+const messageIndex = new Map(); // msgId → index in messageHistory (O(1) vote lookup)
 const MAX_HISTORY = 100;
 function pushHistory(type, data) {
+    if (messageHistory.length >= MAX_HISTORY) {
+        const removed = messageHistory.shift();
+        if (removed?.data?.msgId) messageIndex.delete(removed.data.msgId);
+        // Re-index remaining items after shift
+        messageIndex.clear();
+        messageHistory.forEach((m, i) => { if (m.data?.msgId) messageIndex.set(m.data.msgId, i); });
+    }
     messageHistory.push({ type, data });
-    if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+    if (data?.msgId) messageIndex.set(data.msgId, messageHistory.length - 1);
 }
 
 // Simple pin for admin access (loaded from environment)
@@ -1117,10 +1143,12 @@ io.on('connection', (socket) => {
         const userObj = activeUsers.get(socket.id);
         if (!userObj) return;
 
-        // Find msg in history
-        const msgIndex = messageHistory.findIndex(m => m.type === 'chat' && m.data.msgId === msgId);
-        if (msgIndex === -1) return;
-        const msg = messageHistory[msgIndex].data;
+        // Find msg in history via O(1) index map
+        const idx = messageIndex.get(msgId);
+        if (idx === undefined) return;
+        const histEntry = messageHistory[idx];
+        if (!histEntry || histEntry.type !== 'chat') return;
+        const msg = histEntry.data;
 
         // Can't vote on own or bot msg
         if (msg.username === userObj.username || msg.isBot) return;

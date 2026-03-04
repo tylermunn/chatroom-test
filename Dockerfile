@@ -35,5 +35,13 @@ FROM base
 # Copy built application
 COPY --from=build /app /app
 
+# Set ownership to non-root node user and switch to it
+RUN chown -R node:node /app
+USER node
+
+# Health check for container monitoring
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
 # Start the server by default, this can be overwritten at runtime
 CMD [ "npm", "run", "start" ]

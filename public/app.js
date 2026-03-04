@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const mTicker = document.getElementById('munn-ticker-span');
                 if (mTicker) {
-                    mTicker.innerHTML = `$MUNN [ <span class="text-zinc-100">$${data.price}</span> | <span class="${txtColor}">${sign}${data.change24h}%</span> ]`;
+                    mTicker.innerHTML = `$MUNN [ <span class="text-zinc-100">$${escapeHTML(String(data.price))}</span> | <span class="${txtColor}">${sign}${escapeHTML(String(data.change24h))}%</span> ]`;
                 }
             }
         } catch (e) { }
@@ -745,6 +745,9 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.off('kicked_out');
         socket.off('message_voted');
         socket.off('reputation_update');
+        socket.off('user_typing');
+        socket.off('user_stop_typing');
+        socket.off('chat_paused_status');
 
         // Reputation logic
         socket.on('message_voted', (data) => {
@@ -764,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const liveTickerText = document.getElementById('live-ticker-text');
         socket.on('reputation_update', (data) => {
             if (liveTickerText) {
-                const updateStr = `[ REPUTATION UPDATE ] *** [ USER: ${data.username.toUpperCase()} ] *** [ NEW SCORE: ${data.reputation} ] *** `;
+                const updateStr = `[ REPUTATION UPDATE ] *** [ USER: ${escapeHTML(data.username).toUpperCase()} ] *** [ NEW SCORE: ${data.reputation} ] *** `;
                 liveTickerText.textContent = updateStr + liveTickerText.textContent;
             }
         });
@@ -884,16 +887,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // Typing indicator
         const typingIndicator = document.getElementById('typing-indicator');
         const typingText = document.getElementById('typing-text');
-        const typingUsers = new Set();
+        const typingUsers = new Map(); // username → timeoutId
         let typingTimeout = null;
 
         socket.on('user_typing', (data) => {
             if (data.username === myUsername) return;
-            typingUsers.add(data.username);
+            clearTimeout(typingUsers.get(data.username));
+            typingUsers.set(data.username, setTimeout(() => {
+                typingUsers.delete(data.username);
+                updateTypingUI();
+            }, 5000)); // auto-expire after 5s of silence
             updateTypingUI();
         });
 
         socket.on('user_stop_typing', (data) => {
+            clearTimeout(typingUsers.get(data.username));
             typingUsers.delete(data.username);
             updateTypingUI();
         });
@@ -904,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 typingIndicator.classList.add('hidden');
             } else {
                 typingIndicator.classList.remove('hidden');
-                const names = Array.from(typingUsers);
+                const names = Array.from(typingUsers.keys());
                 if (names.length === 1) {
                     typingText.textContent = `${names[0]} is typing...`;
                 } else if (names.length === 2) {
@@ -964,9 +972,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     <div class="mt-px flex gap-1.5 items-center h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'flex-row-reverse mr-1' : 'ml-1'}">
                         ${!isMe && !msg.isBot ? `
-                        <button onclick="voteMessage('${msg.msgId}', 1)" class="text-[11px] font-bold text-zinc-500 hover:text-rose-400 px-1.5 py-0.5 rounded transition-colors flex items-center gap-1 hover:bg-rose-500/10"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>Like</button>
+                        <button class="vote-btn text-[11px] font-bold text-zinc-500 hover:text-rose-400 px-1.5 py-0.5 rounded transition-colors flex items-center gap-1 hover:bg-rose-500/10" data-msgid="${escapeHTML(msg.msgId)}"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>Like</button>
                         ` : ''}
-                        ${isAdmin ? `<button onclick="deleteMessage('${msg.msgId}')" class="text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors">DEL</button>` : ''}
+                        ${isAdmin ? `<button class="del-btn text-[10px] uppercase tracking-wider font-bold text-red-500/70 hover:text-red-400 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors" data-msgid="${escapeHTML(msg.msgId)}">DEL</button>` : ''}
                     </div>
                 </div>
             `;
@@ -975,14 +983,15 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer.appendChild(msgWrapper);
     }
 
-    window.voteMessage = function (msgId, voteType) {
-        if (socket) socket.emit('vote_message', { msgId, voteType });
-    }
-
-    window.deleteMessage = function (msgId) {
-        if (socket && confirm("DESTRUCT: Remove this node permanently?")) {
-            socket.emit('admin_delete_msg', msgId);
-        }
+    // Event delegation for vote and delete buttons (replaces inline onclick)
+    if (messagesContainer) {
+        messagesContainer.addEventListener('click', (e) => {
+            const voteBtn = e.target.closest('.vote-btn');
+            const delBtn = e.target.closest('.del-btn');
+            if (voteBtn && socket) socket.emit('vote_message', { msgId: voteBtn.dataset.msgid, voteType: 1 });
+            if (delBtn && socket && confirm('DESTRUCT: Remove this node permanently?'))
+                socket.emit('admin_delete_msg', delBtn.dataset.msgid);
+        });
     }
 
     window.kickUser = function (targetId) {
